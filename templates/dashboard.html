@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Ordenes{% endblock %}
+
+{% block content %}
+{% set estado_labels = {
+  "nueva": "Nueva",
+  "confirmada": "Confirmada",
+  "preparando": "Preparando",
+  "lista": "Lista",
+  "entregada": "Entregada"
+} %}
+
+<section class="seccion">
+  <div id="llamada-activa" class="llamada-activa-card oculto">
+    <div class="llamada-activa-top">
+      <div class="llamada-activa-info">
+        <div class="barras-audio">
+          <span class="barra"></span>
+          <span class="barra"></span>
+          <span class="barra"></span>
+          <span class="barra"></span>
+          <span class="barra"></span>
+        </div>
+        <span class="llamada-telefono" id="llamada-telefono">—</span>
+      </div>
+      <div class="llamada-activa-info">
+        <span class="llamada-estado" id="llamada-estado">Identificando intencion</span>
+        <span class="llamada-timer" id="llamada-timer">00:00</span>
+      </div>
+    </div>
+    <div class="llamada-transcripcion" id="llamada-transcripcion"></div>
+  </div>
+</section>
+
+<section class="seccion">
+  <div class="pipeline" id="pipeline">
+    {% for status in ["nueva", "confirmada", "preparando", "lista", "entregada"] %}
+    <div class="pipeline-etapa" data-status="{{ status }}" id="pipeline-{{ status }}">
+      <span class="pipeline-numero" id="pipeline-count-{{ status }}">0</span>
+      <span class="pipeline-label">{{ estado_labels[status] }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="seccion">
+  <h2 class="seccion-titulo">Ordenes activas</h2>
+  <div class="grid-ordenes" id="grid-ordenes">
+    {% for orden in ordenes_activas %}
+    <article class="orden-card" data-orden-id="{{ orden.id }}" data-status="{{ orden.status }}">
+      <div class="orden-card-header">
+        <span class="orden-numero">Orden #{{ orden.id[:8] }}</span>
+        <span class="orden-tiempo-transcurrido" data-created="{{ orden.created_at }}">hace un momento</span>
+      </div>
+      <span class="status-pill status-{{ orden.status }}">{{ estado_labels[orden.status] }}</span>
+      <div class="orden-items">
+        {% for item in orden['items'] %}
+        <div class="orden-item">
+          <span><span class="cantidad">{{ item.cantidad }}x</span>{{ item.platillo }}</span>
+          <span>${{ "%.2f"|format(item.subtotal) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="orden-total">
+        <span>Total</span>
+        <span>${{ "%.2f"|format(orden.total) }}</span>
+      </div>
+      <div class="orden-recoleccion">Recoleccion: {{ orden.tiempo_recoleccion }}</div>
+      <div class="orden-acciones" data-acciones></div>
+    </article>
+    {% else %}
+    <div class="estado-vacio">No hay ordenes activas en este momento.</div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="seccion">
+  <div class="resumen" id="resumen">
+    <div class="resumen-header" id="resumen-header">
+      <h3>Resumen del dia</h3>
+      <span class="resumen-flecha">▾</span>
+    </div>
+    <div class="resumen-contenido">
+      <div class="resumen-grid">
+        <div class="resumen-stat">
+          <div class="valor" id="resumen-llamadas">{{ resumen.llamadas }}</div>
+          <div class="etiqueta">Llamadas</div>
+        </div>
+        <div class="resumen-stat">
+          <div class="valor" id="resumen-ordenes">{{ resumen.ordenes }}</div>
+          <div class="etiqueta">Ordenes</div>
+        </div>
+        <div class="resumen-stat">
+          <div class="valor" id="resumen-ingreso">${{ "%.2f"|format(resumen.ingreso_total) }}</div>
+          <div class="etiqueta">Ingreso total</div>
+        </div>
+        <div class="resumen-stat">
+          <div class="valor" id="resumen-conversion">{{ resumen.conversion }}%</div>
+          <div class="etiqueta">Conversion</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".orden-card").forEach((card) => {
+      window.renderAccionesOrden(card, card.dataset.status);
+    });
+    window.actualizarPipelineDesdeDOM();
+  });
+</script>
+{% endblock %}

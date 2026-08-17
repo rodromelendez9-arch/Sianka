@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Llamadas{% endblock %}
+
+{% block content %}
+<section class="seccion">
+  <h2 class="seccion-titulo">Historial de llamadas</h2>
+
+  {% if llamadas %}
+  <table class="tabla-llamadas">
+    <thead>
+      <tr>
+        <th>Telefono</th>
+        <th>Duracion</th>
+        <th>Resultado</th>
+        <th>Fecha</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for llamada in llamadas %}
+      <tr>
+        <td>{{ llamada.telefono_cliente or "Desconocido" }}</td>
+        <td>
+          {% if llamada.duracion_segundos %}
+            {{ (llamada.duracion_segundos // 60) }}:{{ "%02d"|format(llamada.duracion_segundos % 60) }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          {% if llamada.resultado %}
+          <span class="resultado-pill {{ llamada.resultado }}">
+            {{ "Orden tomada" if llamada.resultado == "orden" else "Sin orden" }}
+          </span>
+          {% else %}
+          —
+          {% endif %}
+        </td>
+        <td>{{ llamada.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="estado-vacio">Aun no hay llamadas registradas.</div>
+  {% endif %}
+</section>
+{% endblock %}

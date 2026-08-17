@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Menu{% endblock %}
+
+{% block content %}
+<section class="seccion">
+  <h2 class="seccion-titulo">Agregar platillo</h2>
+  <div class="card">
+    <form id="form-nuevo-platillo" class="form-grid">
+      <div class="form-group">
+        <label for="nuevo-platillo">Platillo</label>
+        <input type="text" id="nuevo-platillo" name="platillo" required>
+      </div>
+      <div class="form-group">
+        <label for="nuevo-precio">Precio (MXN)</label>
+        <input type="number" id="nuevo-precio" name="precio" step="0.01" min="0" required>
+      </div>
+      <div class="form-group">
+        <label for="nuevo-ingredientes">Ingredientes</label>
+        <input type="text" id="nuevo-ingredientes" name="ingredientes">
+      </div>
+      <button type="submit" class="btn btn-primary">Agregar</button>
+    </form>
+  </div>
+</section>
+
+<section class="seccion">
+  <h2 class="seccion-titulo">Menu actual</h2>
+  <div class="menu-lista" id="menu-lista">
+    {% for item in menu %}
+    <div class="menu-item-card" data-menu-id="{{ item.id }}">
+      <div class="menu-item-info">
+        <div class="platillo-nombre">{{ item.platillo }}</div>
+        <div class="platillo-ingredientes">{{ item.ingredientes or "" }}</div>
+      </div>
+      <div class="menu-item-precio">${{ "%.2f"|format(item.precio) }}</div>
+      <button type="button" class="btn btn-danger" data-eliminar-platillo="{{ item.id }}">✕</button>
+    </div>
+    {% else %}
+    <div class="estado-vacio">Aun no hay platillos en el menu.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const formNuevoPlatillo = document.getElementById("form-nuevo-platillo");
+
+  formNuevoPlatillo.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+
+    const body = {
+      platillo: document.getElementById("nuevo-platillo").value,
+      precio: parseFloat(document.getElementById("nuevo-precio").value),
+      ingredientes: document.getElementById("nuevo-ingredientes").value || null,
+    };
+
+    const respuesta = await fetch("/api/menu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (respuesta.ok) {
+      window.location.reload();
+    } else {
+      alert("No se pudo agregar el platillo.");
+    }
+  });
+
+  document.querySelectorAll("[data-eliminar-platillo]").forEach((boton) => {
+    boton.addEventListener("click", async () => {
+      const menuId = boton.dataset.eliminarPlatillo;
+      if (!confirm("¿Eliminar este platillo del menu?")) return;
+
+      const respuesta = await fetch(`/api/menu/${menuId}`, { method: "DELETE" });
+      if (respuesta.ok) {
+        boton.closest(".menu-item-card").remove();
+      } else {
+        alert("No se pudo eliminar el platillo.");
+      }
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Voice Agent{% endblock %} · {{ restaurante.nombre if restaurante else "Voice Agent" }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-punto"></span>
+        <span class="logo-nombre">{{ restaurante.nombre if restaurante else "Voice Agent" }}</span>
+      </div>
+      <nav class="header-nav">
+        <a href="/" class="{{ 'activo' if active_page == 'dashboard' else '' }}">Ordenes</a>
+        <a href="/llamadas" class="{{ 'activo' if active_page == 'llamadas' else '' }}">Llamadas</a>
+        <a href="/menu" class="{{ 'activo' if active_page == 'menu' else '' }}">Menu</a>
+      </nav>
+      <div class="header-spacer"></div>
+      <span class="badge-escuchando">
+        <span class="punto-animado"></span>
+        Escuchando llamadas
+      </span>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/static/js/dashboard.js"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>
