@@ -1,27 +1,69 @@
 # Voice Agent — Tacos El Güero
 
-MVP de un Voice AI Agent para restaurantes en México. La IA contesta llamadas
-reales en español, toma la orden hablando con el cliente, y todo aparece en
-un dashboard propio en tiempo real sin salir del sistema.
+MVP de un **Voice AI Agent** para restaurantes en México. Un cliente marca por
+teléfono, una IA le contesta en español y toma su orden hablando de forma
+natural, y todo aparece en un dashboard web propio en tiempo real — sin salir
+del sistema, sin recargar la página.
 
-## Stack
+## Qué hace
 
-- **FastAPI** + **Uvicorn** — servidor y WebSockets nativos
-- **Jinja2** — dashboard renderizado en HTML (sin frontend framework)
-- **Twilio Voice + Media Streams** — llamadas telefónicas en tiempo real
-- **Deepgram** — Speech-to-Text streaming en español
-- **Anthropic Claude** (`claude-opus-5`) — cerebro conversacional con tool use
-- **ElevenLabs** — Text-to-Speech en español natural
-- **Supabase (PostgreSQL)** — base de datos
+1. El cliente llama al número del restaurante (un número real de Twilio).
+2. La IA contesta, saluda mencionando el restaurante, y entiende si el
+   cliente quiere ordenar, tiene una duda (horario, ingredientes, precio) o
+   quiere otra cosa.
+3. Si quiere ordenar, la IA toma el pedido platillo por platillo, repite la
+   orden completa en voz alta para confirmar, y la registra en cuanto el
+   cliente confirma — nunca inventa platillos fuera del menú real.
+4. En cuanto la orden queda confirmada, aparece automáticamente como una
+   tarjeta nueva en el dashboard (sin recargar la página), y el restaurante
+   la puede mover por su flujo de preparación: **Nueva → Confirmada →
+   Preparando → Lista → Entregada**.
+5. Mientras la llamada está en curso, el dashboard muestra la transcripción
+   en vivo de lo que dice el cliente y lo que responde la IA.
+
+Incluye datos de prueba de un restaurante real de ejemplo: **Tacos El Güero**,
+en Mérida, Yucatán, con su menú completo.
+
+## Stack tecnológico
+
+- **FastAPI** + **Uvicorn** — servidor y WebSockets nativos (sin librerías extra de tiempo real)
+- **Jinja2** — dashboard renderizado en HTML (sin frontend framework, CSS propio)
+- **Twilio Voice + Media Streams** — recibe la llamada y transmite el audio bidireccional en tiempo real
+- **Deepgram** — Speech-to-Text streaming en español **y** Text-to-Speech (voces Aura en español)
+- **Anthropic Claude** (`claude-haiku-4-5`) — cerebro conversacional, con tool use para registrar la orden de forma estructurada
+- **Supabase (PostgreSQL)** — base de datos: restaurantes, menú, llamadas, órdenes
+
+## Estructura del proyecto
+
+```
+voice-agent/
+├── main.py                    # App FastAPI, registra todos los routers
+├── routes/
+│   ├── twilio_routes.py       # Webhook de llamadas + WebSocket de Media Stream
+│   ├── order_routes.py        # API REST: ordenes, menu, resumen, llamadas
+│   └── dashboard_routes.py    # Paginas HTML (Jinja2) + WS del dashboard
+├── services/
+│   ├── deepgram_service.py    # STT streaming en tiempo real + TTS (Aura)
+│   ├── claude_service.py      # Conversacion con Claude + tool use para ordenes
+│   └── websocket_manager.py   # Broadcast a los clientes del dashboard
+├── database/
+│   └── supabase_client.py     # Todas las queries a Supabase
+├── templates/                 # dashboard.html, llamadas.html, menu.html
+├── static/
+│   ├── css/styles.css         # Diseño propio, sin frameworks
+│   └── js/dashboard.js        # Cliente WebSocket + actualizacion del DOM
+├── prompts/agent_prompt.py    # System prompt dinamico (carga el menu real)
+├── models/                    # Modelos Pydantic (order.py, restaurant.py)
+└── schema.sql                 # Schema de Supabase + datos de prueba
+```
 
 ## 1. Requisitos previos
 
 - Python 3.11+
 - Una cuenta de [Supabase](https://supabase.com)
-- Una cuenta de [Twilio](https://www.twilio.com) con un número de voz
-- Una API key de [Deepgram](https://deepgram.com)
-- Una API key de [Anthropic](https://console.anthropic.com)
-- Una cuenta de [ElevenLabs](https://elevenlabs.io) con una voz en español
+- Una cuenta de [Twilio](https://www.twilio.com) con un número de voz real (no de prueba)
+- Una API key de [Deepgram](https://deepgram.com) (cubre STT y TTS)
+- Una API key de [Anthropic](https://console.anthropic.com) con créditos cargados
 - [ngrok](https://ngrok.com) instalado (para exponer tu servidor local a Twilio)
 
 ## 2. Instalación
@@ -47,7 +89,7 @@ pip install -r requirements.txt
    con su menú completo.
 3. Ve a **Project Settings → API** y copia:
    - `Project URL` → `SUPABASE_URL`
-   - `service_role` key (o `anon` key si solo harás lectura) → `SUPABASE_KEY`
+   - `service_role` key → `SUPABASE_KEY` (el backend escribe datos, necesita permisos completos)
 
 ## 4. Configurar variables de entorno
 
@@ -61,16 +103,14 @@ cp .env.example .env
 ```
 
 ```
-TWILIO_ACCOUNT_SID=       # Console de Twilio → Account Info
-TWILIO_AUTH_TOKEN=        # Console de Twilio → Account Info
-TWILIO_PHONE_NUMBER=      # Tu número de Twilio en formato +52...
+TWILIO_ACCOUNT_SID=          # Console de Twilio → Account Info
+TWILIO_AUTH_TOKEN=           # Console de Twilio → Account Info
+TWILIO_PHONE_NUMBER=         # Tu número de Twilio en formato +52...
 
-DEEPGRAM_API_KEY=         # console.deepgram.com → API Keys
+DEEPGRAM_API_KEY=            # console.deepgram.com → API Keys (STT y TTS)
+DEEPGRAM_TTS_MODEL=aura-2-estrella-es   # voz en español, cambiable
 
-ANTHROPIC_API_KEY=        # console.anthropic.com → API Keys
-
-ELEVENLABS_API_KEY=       # elevenlabs.io → Profile → API Keys
-ELEVENLABS_VOICE_ID=      # Voice Library → elige una voz en español → copia su Voice ID
+ANTHROPIC_API_KEY=           # console.anthropic.com → API Keys
 
 SUPABASE_URL=
 SUPABASE_KEY=
@@ -128,31 +168,6 @@ Ngrok te dará una URL como `https://a1b2c3d4.ngrok-free.app`. Cópiala.
    - Al confirmar una orden, una tarjeta nueva aparece en el grid **sin
      recargar la página**, y el pipeline se actualiza en tiempo real.
 
-## Estructura del proyecto
-
-```
-voice-agent/
-├── main.py                    # App FastAPI, registra todos los routers
-├── routes/
-│   ├── twilio_routes.py       # Webhook de llamadas + WebSocket de Media Stream
-│   ├── order_routes.py        # API REST: ordenes, menu, resumen, llamadas
-│   └── dashboard_routes.py    # Paginas HTML (Jinja2) + WS del dashboard
-├── services/
-│   ├── deepgram_service.py    # STT streaming en tiempo real
-│   ├── claude_service.py      # Conversacion con Claude + tool use para ordenes
-│   ├── elevenlabs_service.py  # TTS a mulaw 8kHz (formato nativo de Twilio)
-│   └── websocket_manager.py   # Broadcast a los clientes del dashboard
-├── database/
-│   └── supabase_client.py     # Todas las queries a Supabase
-├── templates/                 # dashboard.html, llamadas.html, menu.html
-├── static/
-│   ├── css/styles.css         # Diseño propio, sin frameworks
-│   └── js/dashboard.js        # Cliente WebSocket + actualizacion del DOM
-├── prompts/agent_prompt.py    # System prompt dinamico (carga el menu)
-├── models/                    # Modelos Pydantic (order.py, restaurant.py)
-└── schema.sql                 # Schema de Supabase + datos de prueba
-```
-
 ## Flujo técnico de una llamada
 
 1. El cliente llama → Twilio recibe la llamada.
@@ -161,31 +176,36 @@ voice-agent/
    Stream bidireccional hacia `/media-stream`.
 4. Deepgram recibe el audio en streaming (mulaw 8kHz) y transcribe en
    tiempo real.
-5. Cada utterance final se manda a Claude junto con el historial de la
-   conversación.
-6. Claude genera la respuesta en texto (y usa la herramienta
-   `registrar_orden` cuando el cliente confirma su pedido).
-7. ElevenLabs convierte la respuesta a audio mulaw 8kHz.
+5. Cada utterance final se manda a Claude (Haiku 4.5) junto con el
+   historial de la conversación.
+6. Claude genera la respuesta en texto y, cuando el cliente confirma su
+   pedido, usa la herramienta `registrar_orden` en el mismo turno.
+7. Deepgram (voces Aura) convierte la respuesta de texto a audio mulaw 8kHz.
 8. El audio se inyecta de vuelta al Media Stream de Twilio.
 9. La transcripción en tiempo real se transmite al dashboard vía
    WebSocket (`/ws/dashboard`).
 10. Al confirmar la orden: se inserta en Supabase y se hace broadcast del
     evento `orden_nueva` — la tarjeta aparece en el dashboard sin recargar.
 
+Si algo falla durante un turno (la API del LLM, el TTS, la escritura en
+Supabase), queda registrado en los logs del servidor y el cliente escucha un
+mensaje de disculpa en vez de silencio — la llamada nunca se cae en
+silencio sin que quede rastro del error.
+
 ## Notas técnicas importantes
 
-- **Audio format**: ElevenLabs se configura con `output_format="ulaw_8000"`
-  para generar audio mulaw de 8kHz sin encabezado — es el formato que
-  Twilio Media Streams requiere para inyectar audio directamente, sin
-  necesidad de convertir desde MP3.
-- **Modelo de Claude**: se usa `claude-opus-5` con `thinking` desactivado
-  y `effort: "low"` para minimizar la latencia en una llamada de voz en
-  tiempo real. Puedes ajustar esto en `services/claude_service.py` si
-  prefieres priorizar calidad de razonamiento sobre velocidad.
-- **SDK de Deepgram**: el código usa la API de streaming asíncrono del
-  `deepgram-sdk`. Si al instalar obtienes una versión distinta del SDK
-  con nombres de métodos diferentes, revisa la documentación oficial de
-  Deepgram para tu versión exacta (`pip show deepgram-sdk`).
+- **Modelo de Claude**: se usa `claude-haiku-4-5` — rápido y económico para
+  el volumen de llamadas de un restaurante. No se le pasa `thinking` ni
+  `output_config.effort`, ya que Haiku 4.5 no los soporta (a diferencia de
+  los modelos Opus/Sonnet).
+- **Audio**: Deepgram se usa tanto para STT (`nova-2`, streaming) como para
+  TTS (voces **Aura**, formato `mulaw` 8kHz sin encabezado — el formato
+  nativo que requiere Twilio Media Streams para inyectar audio
+  directamente). La voz se controla con `DEEPGRAM_TTS_MODEL` en `.env`.
+- **Tool use**: la orden se captura con una herramienta (`registrar_orden`)
+  en vez de parsear texto libre — Claude solo la llama cuando el cliente
+  confirmó explícitamente toda la orden, con estructura garantizada
+  (platillos, cantidades, precios, total).
 
 ## Deploy a producción
 
