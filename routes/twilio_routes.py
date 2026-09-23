@@ -392,11 +392,18 @@ async def media_stream(websocket: WebSocket) -> None:
         orden_tomada = True
         nombre_cliente = orden["nombre_cliente"]
 
+        # Lo asigna la base (trigger trg_ordenes_numero_dia). Se le da a
+        # Claude para que se lo diga al cliente: con el pide en el mostrador.
+        numero_dia = nueva_orden.get("numero_dia")
+        if numero_dia:
+            mensaje += f" Numero de orden: {numero_dia}."
+
         await manager.broadcast(
             restaurante_id,
             {
                 "evento": "orden_nueva",
                 "orden_id": nueva_orden["id"],
+                "numero_dia": numero_dia,
                 "items": orden["items"],
                 "total": orden["total"],
                 "recoleccion": orden["tiempo_recoleccion"],

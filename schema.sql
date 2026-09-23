@@ -115,6 +115,10 @@ create table if not exists ordenes (
     metodo_pago text check (metodo_pago is null or metodo_pago in ('efectivo', 'tarjeta')),
     paga_con decimal(10,2),
     costo_envio decimal(10,2) default 0,  -- ya incluido en total
+    -- Numero para el mostrador (001-999), se reinicia cada dia. Lo asigna
+    -- el trigger trg_ordenes_numero_dia, no la app.
+    numero_dia integer,
+    fecha_operacion date,
     status text default 'nueva'
         check (status in ('nueva', 'confirmada', 'preparando', 'lista', 'entregada')),
     created_at timestamptz default now(),
@@ -152,6 +156,47 @@ create trigger trg_ordenes_updated_at
     before update on ordenes
     for each row
     execute function set_updated_at();
+
+create index if not exists idx_ordenes_numero_dia on ordenes(restaurante_id, fecha_operacion, numero_dia);
+
+-- ------------------------------------------------------------
+-- Numero de orden diario (001-999) por restaurante. Lo asigna la base en
+-- un trigger para que dos llamadas simultaneas nunca repitan numero.
+-- ------------------------------------------------------------
+create table if not exists contadores_ordenes (
+    restaurante_id uuid not null references restaurantes(id),
+    fecha date not null,
+    ultimo integer not null,
+    primary key (restaurante_id, fecha)
+);
+alter table contadores_ordenes enable row level security;
+
+create or replace function asignar_numero_orden()
+returns trigger as $$
+declare
+    -- El "dia" es el de Mexico, no el de UTC: si no, el contador se
+    -- reiniciaria a las 18:00 hora del centro. Misma zona que los reportes.
+    dia date := (now() at time zone 'America/Mexico_City')::date;
+    siguiente integer;
+begin
+    insert into contadores_ordenes (restaurante_id, fecha, ultimo)
+    values (new.restaurante_id, dia, 1)
+    on conflict (restaurante_id, fecha)
+    do update set ultimo = contadores_ordenes.ultimo + 1
+    returning ultimo into siguiente;
+
+    new.fecha_operacion := dia;
+    -- 001..999; si un restaurante pasa de 999 en un dia, vuelve a 001.
+    new.numero_dia := ((siguiente - 1) % 999) + 1;
+    return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_ordenes_numero_dia on ordenes;
+create trigger trg_ordenes_numero_dia
+    before insert on ordenes
+    for each row
+    execute function asignar_numero_orden();
 
 -- ============================================================
 -- Datos de prueba: Tacos El Güero, Mérida Yucatán

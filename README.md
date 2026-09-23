@@ -94,9 +94,10 @@ pip install -r requirements.txt
 > **¿Ya tenías la base creada con el schema anterior?** Corre una vez, en
 > orden, `migrations/002_multi_restaurante.sql` (slug, variables del agente,
 > tabla `usuarios`), `migrations/003_datos_personales.sql` (nombre del
-> cliente, datos legales, RLS) y `migrations/004_entregas_domicilio.sql`
-> (entregas a domicilio, aviso opcional). Después cifra las filas existentes
-> con `python admin.py cifrar-existentes`.
+> cliente, datos legales, RLS), `migrations/004_entregas_domicilio.sql`
+> (entregas a domicilio, aviso opcional) y `migrations/005_numero_orden_diario.sql`
+> (número de orden 001-999 que se reinicia cada día). Después cifra las filas
+> existentes con `python admin.py cifrar-existentes`.
 
 ## 3.1 Restaurantes y usuarios
 
@@ -125,6 +126,11 @@ servidor valida la orden (menú, mínimo, dirección, teléfono, pago) y le
 devuelve al agente el total real con envío antes de que lo confirme al
 cliente. En el panel, las órdenes a domicilio muestran dirección, teléfono
 completo para el repartidor y el cambio a llevar.
+
+Cada orden recibe un **número del día (001-999)** para el mostrador, que se
+reinicia a medianoche (hora del centro de México). Lo asigna la base de datos
+con un trigger, así que dos llamadas simultáneas nunca repiten número. El
+agente se lo dice al cliente al confirmar.
 
 ## 3.3 Protección de datos personales
 

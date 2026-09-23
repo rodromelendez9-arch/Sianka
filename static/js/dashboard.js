@@ -169,6 +169,12 @@
     return linea;
   }
 
+  // Numero diario 001-999 para el mostrador; el id solo como respaldo.
+  function etiquetaNumero(orden) {
+    if (orden.numero_dia) return `Orden ${String(orden.numero_dia).padStart(3, "0")}`;
+    return `Orden #${(orden.orden_id || "").slice(0, 8)}`;
+  }
+
   function crearBloqueEntrega(orden) {
     const bloque = elemento("div", "orden-entrega");
     bloque.appendChild(elemento("div", "orden-entrega-direccion", orden.direccion_entrega || "Direccion no disponible"));
@@ -203,7 +209,7 @@
     card.dataset.created = orden.timestamp || new Date().toISOString();
 
     const header = elemento("div", "orden-card-header");
-    header.appendChild(elemento("span", "orden-numero", `Orden #${(orden.orden_id || "").slice(0, 8)}`));
+    header.appendChild(elemento("span", "orden-numero", etiquetaNumero(orden)));
     const tiempo = elemento("span", "orden-tiempo-transcurrido", "hace un momento");
     tiempo.dataset.created = card.dataset.created;
     header.appendChild(tiempo);

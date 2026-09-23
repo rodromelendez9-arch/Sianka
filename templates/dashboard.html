@@ -51,7 +51,8 @@
     {% set a_domicilio = orden.tipo_entrega == "domicilio" %}
     <article class="orden-card" data-orden-id="{{ orden.id }}" data-status="{{ orden.status }}" data-tipo="{{ 'domicilio' if a_domicilio else 'recoger' }}">
       <div class="orden-card-header">
-        <span class="orden-numero">Orden #{{ orden.id[:8] }}</span>
+        {# Numero diario 001-999 para el mostrador; las ordenes anteriores a la migracion 005 no lo tienen #}
+        <span class="orden-numero">{% if orden.numero_dia %}Orden {{ "%03d"|format(orden.numero_dia) }}{% else %}Orden #{{ orden.id[:8] }}{% endif %}</span>
         <span class="orden-tiempo-transcurrido" data-created="{{ orden.created_at }}">hace un momento</span>
       </div>
       {% if orden.nombre_cliente %}<div class="orden-cliente">{{ orden.nombre_cliente }}</div>{% endif %}
