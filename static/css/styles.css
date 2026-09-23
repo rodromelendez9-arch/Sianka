@@ -483,6 +483,62 @@ button {
   color: var(--text-2);
 }
 
+/* ---------------- Entregas a domicilio ---------------- */
+
+.orden-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tipo-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border: 0.5px solid var(--border-strong);
+  color: var(--text-2);
+  background: var(--surface-1);
+}
+
+.tipo-pill.tipo-domicilio {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.orden-item-envio {
+  color: var(--text-2);
+}
+
+.orden-entrega {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: var(--surface-2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.orden-entrega-direccion {
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.orden-entrega-detalle {
+  color: var(--text-2);
+}
+
+.orden-entrega-telefono {
+  color: var(--primary);
+  font-weight: 600;
+  width: fit-content;
+}
+
 .orden-acciones {
   display: flex;
   gap: 0.5rem;
@@ -1258,4 +1314,19 @@ button {
   text-align: center;
   font-size: 0.8rem;
   color: var(--text-2);
+}
+
+.config-check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.config-check input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--primary);
 }

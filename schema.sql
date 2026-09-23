@@ -30,6 +30,16 @@ create table if not exists restaurantes (
     razon_social text,
     domicilio text,
     email_privacidad text,
+    -- Aviso de privacidad: decirlo en el saludo (opcional) y URL en el
+    -- sitio propio del restaurante, si tiene
+    aviso_en_llamada boolean default false,
+    url_aviso_privacidad text,
+    -- Entregas a domicilio
+    ofrece_entregas boolean default false,
+    costo_envio decimal(10,2) default 0,
+    pedido_minimo_envio decimal(10,2) default 0,
+    tiempo_entrega_min integer default 45,
+    zona_entrega text,
     activo boolean default true,
     created_at timestamptz default now()
 );
@@ -97,6 +107,14 @@ create table if not exists ordenes (
     total decimal(10,2),
     tiempo_recoleccion text,
     nombre_cliente text,  -- cifrado por la app
+    tipo_entrega text default 'recoger' check (tipo_entrega in ('recoger', 'domicilio')),
+    -- Solo a domicilio. direccion, referencias y telefono: cifrados por la app
+    direccion_entrega text,
+    referencias_entrega text,
+    telefono_contacto text,
+    metodo_pago text check (metodo_pago is null or metodo_pago in ('efectivo', 'tarjeta')),
+    paga_con decimal(10,2),
+    costo_envio decimal(10,2) default 0,  -- ya incluido en total
     status text default 'nueva'
         check (status in ('nueva', 'confirmada', 'preparando', 'lista', 'entregada')),
     created_at timestamptz default now(),

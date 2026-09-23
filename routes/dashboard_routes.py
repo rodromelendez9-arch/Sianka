@@ -1,11 +1,18 @@
 import re
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request, WebSocket, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
 
 from database import supabase_client
-from prompts.agent_prompt import TIEMPO_RECOLECCION_DEFAULT, aviso_privacidad_breve, saludo_inicial
+from prompts.agent_prompt import (
+    TIEMPO_ENTREGA_DEFAULT,
+    TIEMPO_RECOLECCION_DEFAULT,
+    aviso_privacidad_breve,
+    saludo_inicial,
+    url_aviso_privacidad,
+)
 from routes.order_routes import DIAS_POR_PERIODO, SEMANAS_HISTORIAL_PREDICCION
 from services.auth_service import require_login, restaurante_de_sesion
 from services.cifrado_service import enmascarar_telefono
@@ -106,11 +113,13 @@ def _render_configuracion(request: Request, restaurante: dict, mensaje: str = ""
         {
             "restaurante": restaurante,
             "saludo_default": saludo_inicial({"nombre": restaurante.get("nombre")}),
-            "aviso_breve": aviso_privacidad_breve(),
+            "aviso_breve": aviso_privacidad_breve(restaurante),
+            "url_aviso": url_aviso_privacidad(restaurante),
             "datos_legales_completos": all(
                 restaurante.get(c) for c in ("razon_social", "domicilio", "email_privacidad")
             ),
             "tiempo_default": TIEMPO_RECOLECCION_DEFAULT,
+            "tiempo_entrega_default": TIEMPO_ENTREGA_DEFAULT,
             "mensaje": mensaje,
             "error": error,
             "active_page": "configuracion",
@@ -133,9 +142,16 @@ async def configuracion_guardar(
     saludo: str = Form(""),
     tiempo_recoleccion_min: int = Form(TIEMPO_RECOLECCION_DEFAULT),
     instrucciones_extra: str = Form(""),
+    ofrece_entregas: Optional[str] = Form(None),
+    costo_envio: float = Form(0),
+    pedido_minimo_envio: float = Form(0),
+    tiempo_entrega_min: int = Form(TIEMPO_ENTREGA_DEFAULT),
+    zona_entrega: str = Form(""),
     razon_social: str = Form(""),
     domicilio: str = Form(""),
     email_privacidad: str = Form(""),
+    url_aviso_privacidad_propia: str = Form(""),
+    aviso_en_llamada: Optional[str] = Form(None),
     restaurante_id: str = Depends(require_login),
 ):
     # El slug y el numero de Twilio NO se editan aqui: el numero decide que
@@ -143,33 +159,46 @@ async def configuracion_guardar(
     # al restaurante sin llamadas. Esos se cambian con admin.py.
     restaurante = supabase_client.get_restaurante(restaurante_id)
 
+    def error(texto: str):
+        return _render_configuracion(request, restaurante, error=texto)
+
     nombre = nombre.strip()
     if not nombre:
-        return _render_configuracion(request, restaurante, error="El nombre no puede quedar vacio.")
+        return error("El nombre no puede quedar vacio.")
     if not 1 <= tiempo_recoleccion_min <= 180:
-        return _render_configuracion(
-            request, restaurante, error="El tiempo de recoleccion debe estar entre 1 y 180 minutos."
-        )
+        return error("El tiempo de recoleccion debe estar entre 1 y 180 minutos.")
+    if not 1 <= tiempo_entrega_min <= 240:
+        return error("El tiempo de entrega debe estar entre 1 y 240 minutos.")
+    if not (0 <= costo_envio <= 10000 and 0 <= pedido_minimo_envio <= 100000):
+        return error("El costo de envio y el pedido minimo no pueden ser negativos.")
 
     email_privacidad = email_privacidad.strip().lower()
     if email_privacidad and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email_privacidad):
-        return _render_configuracion(
-            request, restaurante, error="El correo de privacidad no parece valido."
-        )
+        return error("El correo de privacidad no parece valido.")
+
+    url_propia = url_aviso_privacidad_propia.strip()
+    if url_propia and not re.fullmatch(r"https://[^\s]+\.[^\s]+", url_propia):
+        return error("La URL del aviso de privacidad debe empezar con https://")
 
     restaurante = supabase_client.actualizar_restaurante(
         restaurante_id,
         nombre=nombre[:120],
         ciudad=ciudad.strip()[:120],
         horario=horario.strip()[:300],
-        # Vacio = usar el saludo por defecto (que ya incluye el nombre). El
-        # aviso de privacidad se agrega siempre despues, no es editable.
+        # Vacio = usar el saludo por defecto (que ya incluye el nombre).
         saludo=saludo.strip()[:300] or None,
         tiempo_recoleccion_min=tiempo_recoleccion_min,
         instrucciones_extra=instrucciones_extra.strip()[:2000] or None,
+        ofrece_entregas=ofrece_entregas is not None,
+        costo_envio=round(costo_envio, 2),
+        pedido_minimo_envio=round(pedido_minimo_envio, 2),
+        tiempo_entrega_min=tiempo_entrega_min,
+        zona_entrega=zona_entrega.strip()[:1000] or None,
         razon_social=razon_social.strip()[:200] or None,
         domicilio=domicilio.strip()[:300] or None,
         email_privacidad=email_privacidad[:200] or None,
+        url_aviso_privacidad=url_propia[:300] or None,
+        aviso_en_llamada=aviso_en_llamada is not None,
     )
     return _render_configuracion(
         request, restaurante, mensaje="Cambios guardados. Aplican desde la siguiente llamada."

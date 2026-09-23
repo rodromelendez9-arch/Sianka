@@ -27,14 +27,16 @@ INTERVALO_PURGA_SEGUNDOS = 24 * 60 * 60
 
 async def _purgar_transcripciones_periodicamente() -> None:
     """Politica de retencion: una vez al dia borra las transcripciones mas
-    viejas que RETENCION_TRANSCRIPCIONES_DIAS. Es idempotente, asi que no
+    viejas que RETENCION_TRANSCRIPCIONES_DIAS, y las direcciones y telefonos
+    de entrega de ordenes igual de viejas. Es idempotente, asi que no
     importa si corren varios procesos a la vez."""
     while True:
         try:
             limite = datetime.now(timezone.utc) - timedelta(days=sitio.RETENCION_TRANSCRIPCIONES_DIAS)
             borradas = await asyncio.to_thread(supabase_client.purgar_transcripciones, limite.isoformat())
-            if borradas:
-                logger.info("Retencion: %s transcripciones borradas", borradas)
+            entregas = await asyncio.to_thread(supabase_client.purgar_datos_entrega, limite.isoformat())
+            if borradas or entregas:
+                logger.info("Retencion: %s transcripciones y %s direcciones borradas", borradas, entregas)
         except Exception:
             logger.exception("Fallo la purga de transcripciones; se reintenta en 24 h")
         await asyncio.sleep(INTERVALO_PURGA_SEGUNDOS)
@@ -105,7 +107,11 @@ async def cabeceras_de_seguridad(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
-    if not request.url.path.startswith(_RUTAS_CACHEABLES):
+    if request.url.path.startswith("/static/"):
+        # Revalidar siempre (ETag -> 304 si no cambio): tras un deploy, los
+        # paneles de los restaurantes toman el JS/CSS nuevo sin vaciar cache.
+        response.headers["Cache-Control"] = "no-cache"
+    elif not request.url.path.startswith(_RUTAS_CACHEABLES):
         response.headers["Cache-Control"] = "no-store"
     if HTTPS_ONLY:
         response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"

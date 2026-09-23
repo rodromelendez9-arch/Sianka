@@ -13,8 +13,8 @@ from twilio.request_validator import RequestValidator
 from twilio.twiml.voice_response import Connect, Stream, VoiceResponse
 
 from database import supabase_client
-from prompts.agent_prompt import tiempo_recoleccion
-from services.cifrado_service import enmascarar_telefono
+from prompts.agent_prompt import tiempo_entrega, tiempo_recoleccion
+from services.cifrado_service import enmascarar_telefono, normalizar_telefono
 from services.claude_service import ClaudeConversationService
 from services.deepgram_service import DeepgramStreamingService, sintetizar_audio_mulaw
 from services.rate_limit_service import limitar
@@ -83,6 +83,97 @@ def _validar_y_recalcular_orden(
         total += subtotal
 
     return items_validados, round(total, 2)
+
+
+LARGO_MINIMO_DIRECCION = 8
+
+
+def _pesos(valor: float) -> str:
+    return f"${valor:.2f}"
+
+
+def preparar_orden(
+    propuesta: dict, menu: list[dict], restaurante: dict, telefono_llamada: Optional[str]
+) -> tuple[Optional[dict], str]:
+    """Valida lo que Claude propone registrar y calcula el total real.
+    Devuelve (orden_lista_para_guardar, mensaje) o (None, motivo_del_rechazo).
+    El mensaje vuelve a Claude como resultado de la herramienta, asi que esta
+    escrito para que el agente sepa exactamente que decirle al cliente."""
+    items_validados, subtotal = _validar_y_recalcular_orden(propuesta.get("items") or [], menu)
+    fuera_de_menu = [
+        str(i.get("platillo")) for i in propuesta.get("items") or []
+        if i.get("platillo") not in {v["platillo"] for v in items_validados}
+    ]
+    if not items_validados or fuera_de_menu:
+        return None, (
+            "No se registro: estos platillos no existen en el menu o tienen cantidad invalida: "
+            f"{', '.join(fuera_de_menu) or 'ninguno valido'}. Confirma con el cliente usando los nombres exactos del menu."
+        )
+
+    nombre = " ".join(str(propuesta.get("nombre_cliente") or "").split())[:LARGO_MAXIMO_NOMBRE]
+    if not nombre:
+        return None, "No se registro: falta el nombre del cliente para la orden."
+
+    orden: dict = {"items": items_validados, "nombre_cliente": nombre, "tipo_entrega": "recoger", "costo_envio": 0.0}
+
+    if propuesta.get("tipo_entrega") != "domicilio":
+        orden["total"] = subtotal
+        orden["tiempo_recoleccion"] = tiempo_recoleccion(restaurante)
+        return orden, (
+            f"Orden registrada para recoger. Total a pagar: {_pesos(subtotal)}. "
+            f"Lista en {orden['tiempo_recoleccion']}."
+        )
+
+    if not restaurante.get("ofrece_entregas"):
+        return None, "No se registro: el restaurante no hace envios a domicilio, solo pedidos para recoger."
+
+    direccion = " ".join(str(propuesta.get("direccion_entrega") or "").split())[:300]
+    if len(direccion) < LARGO_MINIMO_DIRECCION:
+        return None, "No se registro: falta la direccion completa (calle, numero y colonia)."
+
+    minimo = float(restaurante.get("pedido_minimo_envio") or 0)
+    if subtotal < minimo:
+        return None, (
+            f"No se registro: el pedido minimo para envio es {_pesos(minimo)} y el pedido va en "
+            f"{_pesos(subtotal)}. Ofrece agregar algo o pasar a recoger."
+        )
+
+    telefono = normalizar_telefono(propuesta.get("telefono_contacto")) or normalizar_telefono(telefono_llamada)
+    if not telefono:
+        return None, "No se registro: falta un telefono de contacto para el repartidor."
+
+    metodo_pago = propuesta.get("metodo_pago")
+    if metodo_pago not in ("efectivo", "tarjeta"):
+        return None, "No se registro: falta preguntar si paga en efectivo o con tarjeta al recibir."
+
+    envio = round(float(restaurante.get("costo_envio") or 0), 2)
+    total = round(subtotal + envio, 2)
+
+    paga_con = None
+    if metodo_pago == "efectivo" and propuesta.get("paga_con"):
+        paga_con = round(float(propuesta["paga_con"]), 2)
+        if paga_con < total:
+            return None, (
+                f"No se registro: el cliente dijo que paga con {_pesos(paga_con)}, pero el total con envio "
+                f"es {_pesos(total)}. Confirma con cuanto paga."
+            )
+
+    orden.update(
+        tipo_entrega="domicilio",
+        direccion_entrega=direccion,
+        referencias_entrega=" ".join(str(propuesta.get("referencias_entrega") or "").split())[:300] or None,
+        telefono_contacto=telefono,
+        metodo_pago=metodo_pago,
+        paga_con=paga_con,
+        costo_envio=envio,
+        total=total,
+        tiempo_recoleccion=tiempo_entrega(restaurante),
+    )
+    cambio = f" Llevar cambio de {_pesos(paga_con - total)}." if paga_con and paga_con > total else ""
+    return orden, (
+        f"Orden registrada a domicilio. Total a pagar: {_pesos(total)} (incluye envio de {_pesos(envio)}), "
+        f"en {metodo_pago}.{cambio} Entrega estimada en {orden['tiempo_recoleccion']}."
+    )
 
 
 def _validar_firma_twilio(request: Request, form: dict[str, str]) -> bool:
@@ -283,54 +374,52 @@ async def media_stream(websocket: WebSocket) -> None:
         if cerrar_turno():
             await interrumpir_agente()
 
-    async def procesar_turno(texto: str) -> None:
+    async def registrar_orden(propuesta: dict) -> tuple[bool, str]:
+        """Lo llama ClaudeConversationService cuando Claude usa la herramienta.
+        La orden se guarda ANTES de hablar: si el cliente cuelga justo despues
+        de confirmar, el envio de audio falla pero la orden ya quedo guardada."""
         nonlocal orden_tomada, nombre_cliente
 
+        if not restaurante_id:
+            return False, "No se registro: error interno del sistema. Pide disculpas y pide que llame de nuevo."
+
+        orden, mensaje = preparar_orden(propuesta, menu, restaurante, telefono_cliente)
+        if orden is None:
+            logger.info("Orden rechazada por validacion (llamada_id=%s)", llamada_id)
+            return False, mensaje
+
+        nueva_orden = supabase_client.crear_orden(restaurante_id=restaurante_id, llamada_id=llamada_id, **orden)
+        orden_tomada = True
+        nombre_cliente = orden["nombre_cliente"]
+
+        await manager.broadcast(
+            restaurante_id,
+            {
+                "evento": "orden_nueva",
+                "orden_id": nueva_orden["id"],
+                "items": orden["items"],
+                "total": orden["total"],
+                "recoleccion": orden["tiempo_recoleccion"],
+                "nombre_cliente": orden["nombre_cliente"],
+                "tipo_entrega": orden["tipo_entrega"],
+                "direccion_entrega": orden.get("direccion_entrega"),
+                "referencias_entrega": orden.get("referencias_entrega"),
+                # Completo solo a domicilio: el repartidor necesita llamar.
+                "telefono_contacto": orden.get("telefono_contacto"),
+                "metodo_pago": orden.get("metodo_pago"),
+                "paga_con": orden.get("paga_con"),
+                "costo_envio": orden["costo_envio"],
+                "status": "nueva",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        return True, mensaje
+
+    async def procesar_turno(texto: str) -> None:
         transcripcion_completa.append(f"Cliente: {texto}")
 
         try:
-            resultado = await claude_service.responder(texto)
-
-            # La orden se registra ANTES de hablar: si el cliente cuelga justo
-            # despues de confirmar, el envio de audio falla pero la orden ya
-            # quedo guardada.
-            orden = resultado["orden"]
-            if orden and restaurante_id:
-                items_validados, total_validado = _validar_y_recalcular_orden(orden["items"], menu)
-                recoleccion = orden.get("tiempo_recoleccion") or tiempo_recoleccion(restaurante)
-                nombre = " ".join(str(orden.get("nombre_cliente") or "").split())[:LARGO_MAXIMO_NOMBRE]
-
-                if not items_validados:
-                    logger.warning(
-                        "Orden descartada: ningun item coincide con el menu real (llamada_id=%s)",
-                        llamada_id,
-                    )
-                else:
-                    orden_tomada = True
-                    nombre_cliente = nombre or None
-                    nueva_orden = supabase_client.crear_orden(
-                        restaurante_id=restaurante_id,
-                        llamada_id=llamada_id,
-                        items=items_validados,
-                        total=total_validado,
-                        tiempo_recoleccion=recoleccion,
-                        nombre_cliente=nombre_cliente,
-                    )
-
-                    await manager.broadcast(
-                        restaurante_id,
-                        {
-                            "evento": "orden_nueva",
-                            "orden_id": nueva_orden["id"],
-                            "items": items_validados,
-                            "total": total_validado,
-                            "recoleccion": recoleccion,
-                            "nombre_cliente": nombre_cliente,
-                            "status": "nueva",
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                        }
-                    )
-
+            resultado = await claude_service.responder(texto, registrar_orden)
             if resultado["texto"]:
                 await hablar(resultado["texto"])
         except Exception:
@@ -401,7 +490,9 @@ async def media_stream(websocket: WebSocket) -> None:
                 llamada = supabase_client.crear_llamada(restaurante_id, telefono_cliente)
                 llamada_id = llamada["id"]
 
-                claude_service = ClaudeConversationService(restaurante, menu)
+                claude_service = ClaudeConversationService(
+                    restaurante, menu, numero_visible=bool(normalizar_telefono(telefono_cliente))
+                )
                 deepgram_service = DeepgramStreamingService(
                     on_transcript=on_transcript,
                     on_utterance_end=on_utterance_end,

@@ -50,14 +50,50 @@
         <label for="saludo">Saludo al contestar</label>
         <input type="text" id="saludo" name="saludo" value="{{ restaurante.saludo or '' }}" maxlength="300"
                placeholder="{{ saludo_default }}">
-        <span class="form-ayuda">Lo primero que escucha el cliente. Despues el agente siempre dice: "{{ aviso_breve }}" y pregunta que desean ordenar. Dejalo vacio para usar el saludo por defecto.</span>
+        <span class="form-ayuda">Lo primero que escucha el cliente; despues el agente pregunta que desean ordenar. Dejalo vacio para usar el saludo por defecto.</span>
       </div>
 
       <div class="form-group">
         <label for="instrucciones">Indicaciones para el agente</label>
         <textarea id="instrucciones" name="instrucciones_extra" maxlength="2000" rows="4"
-                  placeholder="Ej.: No hacemos envios a domicilio. Los martes hay 2x1 en tacos de pollo.">{{ restaurante.instrucciones_extra or '' }}</textarea>
+                  placeholder="Ej.: Los martes hay 2x1 en tacos de pollo. No hay estacionamiento.">{{ restaurante.instrucciones_extra or '' }}</textarea>
         <span class="form-ayuda">Promociones, politicas o datos que el agente debe mencionar cuando aplique.</span>
+      </div>
+
+      <h3 class="config-subtitulo" id="entregas">Entregas a domicilio</h3>
+
+      <label class="config-check">
+        <input type="checkbox" name="ofrece_entregas" {{ "checked" if restaurante.ofrece_entregas else "" }}>
+        <span>Ofrecer envio a domicilio en las llamadas</span>
+      </label>
+
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="costo_envio">Costo de envio (MXN)</label>
+          <input type="number" id="costo_envio" name="costo_envio" min="0" step="0.01"
+                 value="{{ '%.2f'|format(restaurante.costo_envio or 0) }}">
+        </div>
+        <div class="form-group">
+          <label for="pedido_minimo_envio">Pedido minimo para envio (MXN)</label>
+          <input type="number" id="pedido_minimo_envio" name="pedido_minimo_envio" min="0" step="0.01"
+                 value="{{ '%.2f'|format(restaurante.pedido_minimo_envio or 0) }}">
+          <span class="form-ayuda">Sin contar el envio. 0 = sin minimo.</span>
+        </div>
+      </div>
+
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="tiempo_entrega_min">Tiempo de entrega (minutos)</label>
+          <input type="number" id="tiempo_entrega_min" name="tiempo_entrega_min" min="1" max="240"
+                 value="{{ restaurante.tiempo_entrega_min or tiempo_entrega_default }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="zona_entrega">Zona de entrega</label>
+        <textarea id="zona_entrega" name="zona_entrega" maxlength="1000" rows="3"
+                  placeholder="Ej.: Colonias Centro, Garcia Gineres, Itzimna y Mexico. No llegamos a comisarias.">{{ restaurante.zona_entrega or '' }}</textarea>
+        <span class="form-ayuda">El agente la usa para decirle al cliente si llegan a su direccion.</span>
       </div>
 
       <h3 class="config-subtitulo" id="datos-legales">Datos para tu aviso de privacidad</h3>
@@ -90,6 +126,23 @@
         <label for="domicilio">Domicilio</label>
         <input type="text" id="domicilio" name="domicilio" value="{{ restaurante.domicilio or '' }}" maxlength="300">
       </div>
+
+      <div class="form-group">
+        <label for="url_aviso">Aviso de privacidad en tu propio sitio (opcional)</label>
+        <input type="url" id="url_aviso" name="url_aviso_privacidad_propia" maxlength="300"
+               value="{{ restaurante.url_aviso_privacidad or '' }}" placeholder="https://turestaurante.mx/privacidad">
+        <span class="form-ayuda">Si lo publicas en tu sitio, el agente da esta direccion cuando un cliente lo pregunte.</span>
+      </div>
+
+      <label class="config-check">
+        <input type="checkbox" name="aviso_en_llamada" {{ "checked" if restaurante.aviso_en_llamada else "" }}>
+        <span>Mencionar el aviso de privacidad al contestar</span>
+      </label>
+      <p class="form-ayuda">
+        El agente diria: "{{ aviso_breve }}"
+        Si no lo activas, publica el enlace a tu aviso (<a href="{{ url_aviso }}" target="_blank" rel="noopener">{{ url_aviso }}</a>)
+        donde anuncias tu telefono: menu, perfil de Google y redes sociales.
+      </p>
 
       <button type="submit" class="btn btn-primary">Guardar cambios</button>
     </form>

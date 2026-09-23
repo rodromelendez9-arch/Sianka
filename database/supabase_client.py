@@ -209,7 +209,9 @@ def eliminar_platillo(menu_id: str, restaurante_id: str) -> bool:
 # del codigo trabaja con texto normal y la base nunca los guarda en claro.
 
 CAMPOS_CIFRADOS_LLAMADA = ("telefono_cliente", "nombre_cliente", "transcripcion")
-CAMPOS_CIFRADOS_ORDEN = ("nombre_cliente",)
+CAMPOS_CIFRADOS_ORDEN = ("nombre_cliente", "direccion_entrega", "referencias_entrega", "telefono_contacto")
+# Datos que solo sirven para llevar el pedido: se borran con la retencion.
+CAMPOS_ENTREGA = ("direccion_entrega", "referencias_entrega", "telefono_contacto", "paga_con")
 
 
 def _descifrar_fila(fila: Optional[dict], campos: tuple[str, ...]) -> Optional[dict]:
@@ -273,21 +275,28 @@ def crear_orden(
     total: float,
     tiempo_recoleccion: str = "20 minutos",
     nombre_cliente: Optional[str] = None,
+    tipo_entrega: str = "recoger",
+    costo_envio: float = 0.0,
+    **datos_entrega,
 ) -> dict:
+    """`datos_entrega` (solo a domicilio): direccion_entrega,
+    referencias_entrega, telefono_contacto, metodo_pago, paga_con."""
     client = get_client()
+    fila = {
+        "restaurante_id": restaurante_id,
+        "llamada_id": llamada_id,
+        "items": items,
+        "total": total,
+        "tiempo_recoleccion": tiempo_recoleccion,
+        "nombre_cliente": nombre_cliente,
+        "tipo_entrega": tipo_entrega,
+        "costo_envio": costo_envio,
+        "status": "nueva",
+        **datos_entrega,
+    }
     response = (
         client.table("ordenes")
-        .insert(
-            {
-                "restaurante_id": restaurante_id,
-                "llamada_id": llamada_id,
-                "items": items,
-                "total": total,
-                "tiempo_recoleccion": tiempo_recoleccion,
-                "nombre_cliente": cifrado_service.cifrar(nombre_cliente),
-                "status": "nueva",
-            }
-        )
+        .insert(_cifrar_campos(fila, CAMPOS_CIFRADOS_ORDEN))
         .execute()
     )
     return _descifrar_fila(response.data[0], CAMPOS_CIFRADOS_ORDEN)
@@ -362,7 +371,9 @@ def anonimizar_cliente(restaurante_id: str, telefono: str) -> int:
         client.table("llamadas").update(
             {"telefono_cliente": None, "telefono_hash": None, "nombre_cliente": None, "transcripcion": None}
         ).eq("id", llamada["id"]).execute()
-        client.table("ordenes").update({"nombre_cliente": None}).eq("llamada_id", llamada["id"]).execute()
+        client.table("ordenes").update(
+            {"nombre_cliente": None, **{campo: None for campo in CAMPOS_ENTREGA}}
+        ).eq("llamada_id", llamada["id"]).execute()
     return len(llamadas)
 
 
@@ -375,6 +386,21 @@ def purgar_transcripciones(antes_de_iso: str) -> int:
         .update({"transcripcion": None})
         .lt("created_at", antes_de_iso)
         .not_.is_("transcripcion", "null")
+        .execute()
+    )
+    return len(response.data or [])
+
+
+def purgar_datos_entrega(antes_de_iso: str) -> int:
+    """Politica de retencion: la direccion y el telefono de contacto solo
+    sirven para llevar el pedido. Pasado el plazo se borran; la orden se
+    conserva (platillos y totales) para reportes y contabilidad."""
+    client = get_client()
+    response = (
+        client.table("ordenes")
+        .update({campo: None for campo in CAMPOS_ENTREGA})
+        .lt("created_at", antes_de_iso)
+        .not_.is_("direccion_entrega", "null")
         .execute()
     )
     return len(response.data or [])
@@ -401,11 +427,15 @@ def cifrar_filas_existentes() -> dict[str, int]:
             client.table("llamadas").update(cambios).eq("id", fila["id"]).execute()
             conteo["llamadas"] += 1
 
-    for fila in client.table("ordenes").select("id, nombre_cliente").execute().data or []:
-        if fila.get("nombre_cliente") and not cifrado_service.esta_cifrado(fila["nombre_cliente"]):
-            client.table("ordenes").update(
-                {"nombre_cliente": cifrado_service.cifrar(fila["nombre_cliente"])}
-            ).eq("id", fila["id"]).execute()
+    ordenes = client.table("ordenes").select("id, " + ", ".join(CAMPOS_CIFRADOS_ORDEN)).execute().data or []
+    for fila in ordenes:
+        cambios = {
+            campo: cifrado_service.cifrar(fila[campo])
+            for campo in CAMPOS_CIFRADOS_ORDEN
+            if fila.get(campo) and not cifrado_service.esta_cifrado(fila[campo])
+        }
+        if cambios:
+            client.table("ordenes").update(cambios).eq("id", fila["id"]).execute()
             conteo["ordenes"] += 1
 
     return conteo

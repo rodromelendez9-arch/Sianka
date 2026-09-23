@@ -247,7 +247,9 @@ def cmd_arco_cancelar(args) -> None:
 def cmd_purgar_transcripciones(args) -> None:
     dias = args.dias if args.dias is not None else sitio.RETENCION_TRANSCRIPCIONES_DIAS
     limite = datetime.now(timezone.utc) - timedelta(days=dias)
-    print(f"{supabase_client.purgar_transcripciones(limite.isoformat())} transcripcion(es) borradas (mas de {dias} dias).")
+    transcripciones = supabase_client.purgar_transcripciones(limite.isoformat())
+    direcciones = supabase_client.purgar_datos_entrega(limite.isoformat())
+    print(f"Borradas (mas de {dias} dias): {transcripciones} transcripcion(es) y {direcciones} direccion(es) de entrega.")
 
 
 def main() -> None:
@@ -310,7 +312,9 @@ def main() -> None:
     p.add_argument("--si", action="store_true", help="No pedir confirmacion")
     p.set_defaults(func=cmd_arco_cancelar)
 
-    p = sub.add_parser("purgar-transcripciones", help="Borra transcripciones mas viejas que la retencion")
+    p = sub.add_parser(
+        "purgar-transcripciones", help="Borra transcripciones y direcciones mas viejas que la retencion"
+    )
     p.add_argument("--dias", type=int, help=f"Default: {sitio.RETENCION_TRANSCRIPCIONES_DIAS}")
     p.set_defaults(func=cmd_purgar_transcripciones)
 

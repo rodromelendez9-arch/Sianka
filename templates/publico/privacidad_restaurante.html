@@ -33,18 +33,20 @@
     <ul>
       <li>El número telefónico desde el que llamas (si no es privado).</li>
       <li>El nombre de pila con el que haces tu pedido.</li>
-      <li>La transcripción en texto de la llamada y el detalle de tu pedido.</li>
+      <li>Un registro escrito de la llamada y el detalle de tu pedido.</li>
+      {% if restaurante.ofrece_entregas %}
+      <li>Si pides a domicilio: la dirección de entrega, referencias para encontrarla, un teléfono de contacto y la forma de pago (efectivo o tarjeta al recibir, y con cuánto pagas).</li>
+      {% endif %}
     </ul>
     <p>
-      Tu llamada la atiende un asistente virtual. <strong>El audio no se graba ni se guarda</strong>: se convierte a texto en tiempo real.
-      No pedimos datos sensibles, de pago ni tu domicilio.
+      <strong>No grabamos el audio de la llamada.</strong> No pedimos datos sensibles ni datos de tarjetas bancarias.
     </p>
   </section>
 
   <section>
     <h2>3. Para qué los usamos</h2>
     <ul>
-      <li>Tomar, preparar y entregarte tu pedido.</li>
+      <li>Tomar y preparar tu pedido{% if restaurante.ofrece_entregas %} y, si lo pides a domicilio, entregártelo y contactarte si el repartidor lo necesita{% endif %}.</li>
       <li>Responder las dudas que hagas durante la llamada (menú, precios, horario).</li>
       <li>Estadísticas internas agregadas (por ejemplo, las horas con más pedidos), sin identificarte.</li>
     </ul>
@@ -54,39 +56,41 @@
   <section>
     <h2>4. Tu consentimiento</h2>
     <p>
-      Al inicio de cada llamada el asistente te informa que tus datos se usan solo para tu pedido y dónde consultar este aviso.
-      Si continúas la llamada, consientes ese uso. Si no estás de acuerdo, puedes colgar en cualquier momento y
-      después solicitar que se eliminen tus datos (ver punto 7).
+      {% if restaurante.aviso_en_llamada %}
+      Al inicio de cada llamada te informamos que tus datos solo se usan para atender tu pedido y dónde consultar este aviso.
+      {% else %}
+      Este aviso está disponible en los medios donde publicamos nuestro teléfono, y puedes pedirlo durante la llamada.
+      {% endif %}
+      Al hacer tu pedido consientes el uso de tus datos para los fines descritos. Si no estás de acuerdo, puedes colgar
+      en cualquier momento y solicitar que se eliminen tus datos (ver punto 7).
     </p>
   </section>
 
   <section>
     <h2>5. Quién más trata tus datos</h2>
     <p>
-      {{ restaurante.nombre }} usa <a href="/privacidad">Sianka</a> para contestar las llamadas y registrar los pedidos.
-      Sianka y sus proveedores tecnológicos tratan tus datos únicamente por encargo del restaurante y para ese fin:
+      Para atender las llamadas y registrar los pedidos nos apoyamos en proveedores de servicios tecnológicos que tratan
+      tus datos únicamente por nuestra cuenta y para ese fin, con obligaciones de confidencialidad:
     </p>
-    <div class="legal-tabla-contenedor">
-      <table class="legal-tabla">
-        <thead><tr><th>Proveedor</th><th>Función</th><th>Ubicación</th></tr></thead>
-        <tbody>
-          <tr><td>Sianka</td><td>Plataforma del asistente de voz y del panel de pedidos</td><td>México</td></tr>
-          {% for p in proveedores %}
-          <tr><td>{{ p.nombre }}</td><td>{{ p.funcion }}</td><td>{{ p.pais }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <p>No transferimos tus datos a terceros, salvo cuando lo requiera una autoridad competente conforme a la ley.</p>
+    <ul>
+      <li>Plataforma de atención telefónica y registro de pedidos.</li>
+      {% for categoria in categorias_proveedores %}
+      <li>{{ categoria }}.</li>
+      {% endfor %}
+    </ul>
+    <p>
+      Algunos de estos proveedores pueden ubicarse fuera de México. No transferimos tus datos a terceros, salvo cuando
+      lo requiera una autoridad competente conforme a la ley.
+    </p>
   </section>
 
   <section>
     <h2>6. Seguridad y conservación</h2>
     <p>
-      Tu número, tu nombre y la transcripción se guardan cifrados, y el personal del restaurante solo ve los últimos 4
-      dígitos de tu número. La transcripción se borra automáticamente a los {{ sitio.RETENCION_TRANSCRIPCIONES_DIAS }} días.
-      Los datos del pedido se conservan el tiempo que exijan las obligaciones legales y fiscales del restaurante.
-      Consulta el detalle de las medidas en el <a href="/privacidad#seguridad">aviso de Sianka</a>.
+      Tus datos se guardan cifrados y solo el personal que atiende tu pedido puede consultarlos.
+      El registro de la llamada{% if restaurante.ofrece_entregas %}, la dirección y el teléfono de entrega{% endif %}
+      se eliminan automáticamente a los {{ sitio.RETENCION_TRANSCRIPCIONES_DIAS }} días.
+      Los datos del pedido, sin tus datos de contacto, se conservan el tiempo que exijan nuestras obligaciones legales y fiscales.
     </p>
   </section>
 

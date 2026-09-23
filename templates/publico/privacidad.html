@@ -25,7 +25,7 @@
     <h2>1. Quién es el responsable</h2>
     <p>
       {{ sitio.SIANKA_RAZON_SOCIAL or "Sianka" }}{% if sitio.SIANKA_DOMICILIO %}, con domicilio en {{ sitio.SIANKA_DOMICILIO }}{% endif %}
-      ("Sianka"), ofrece a restaurantes un asistente de voz que contesta llamadas y toma pedidos por teléfono.
+      ("Sianka"), ofrece a restaurantes un servicio para atender sus llamadas telefónicas y registrar pedidos.
       Sianka es responsable del tratamiento de los datos de las personas que usan su panel de administración,
       en los términos de la legislación mexicana en materia de protección de datos personales en posesión de los particulares.
     </p>
@@ -37,19 +37,11 @@
   <section id="llamaste">
     <h2>2. Si llamaste a un restaurante</h2>
     <p>
-      Cuando llamas a un restaurante que usa Sianka, <strong>el responsable de tus datos es ese restaurante</strong>.
-      Sianka los trata únicamente por encargo del restaurante, para tomar tu pedido, y no los usa para ningún fin propio.
-      Consulta el aviso de privacidad del restaurante al que llamaste:
+      Cuando haces un pedido por teléfono a un restaurante que usa Sianka, <strong>el responsable de tus datos es ese restaurante</strong>.
+      Sianka los trata únicamente por encargo del restaurante, para atender tu pedido, y no los usa para ningún fin propio.
+      Consulta el aviso de privacidad del restaurante en sus medios de contacto o solicítalo directamente a él;
+      también puedes escribirnos y te lo haremos llegar.
     </p>
-    {% if restaurantes %}
-    <ul class="legal-lista-restaurantes">
-      {% for r in restaurantes %}
-      <li><a href="/privacidad/{{ r.slug }}">{{ r.nombre }}</a>{% if r.ciudad %} · {{ r.ciudad }}{% endif %}</li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p>Aún no hay restaurantes publicados.</p>
-    {% endif %}
   </section>
 
   <section id="datos">
@@ -57,18 +49,19 @@
     <h3>Usuarios del panel de los restaurantes</h3>
     <ul>
       <li>Nombre y correo electrónico.</li>
-      <li>Contraseña, que guardamos únicamente como una huella cifrada (hash); nadie en Sianka puede leerla.</li>
+      <li>Contraseña, que guardamos de forma que nadie en Sianka puede leerla.</li>
       <li>Datos del restaurante: nombre, domicilio, horario, menú y número telefónico.</li>
     </ul>
     <h3>Personas que llaman a un restaurante (como encargado)</h3>
     <ul>
       <li>Número telefónico desde el que llamas (si no es privado).</li>
       <li>Nombre de pila con el que haces tu pedido.</li>
-      <li>Transcripción en texto de la conversación y el detalle de tu pedido.</li>
+      <li>Registro escrito de la conversación y detalle de tu pedido.</li>
+      <li>Si pides a domicilio: dirección de entrega, referencias, teléfono de contacto y forma de pago (efectivo o tarjeta al recibir, y con cuánto pagas).</li>
     </ul>
     <p>
-      <strong>No grabamos ni guardamos el audio de la llamada</strong>: se procesa en tiempo real para convertirlo a texto.
-      No solicitamos datos personales sensibles, datos financieros ni de pago.
+      <strong>No grabamos ni guardamos el audio de la llamada.</strong>
+      No solicitamos datos personales sensibles ni datos de tarjetas bancarias.
     </p>
   </section>
 
@@ -77,7 +70,7 @@
     <p>Finalidades necesarias para el servicio:</p>
     <ul>
       <li>Crear y administrar las cuentas de los restaurantes y darles acceso a su panel.</li>
-      <li>Tomar, registrar y mostrar los pedidos telefónicos al restaurante correspondiente.</li>
+      <li>Registrar los pedidos telefónicos y mostrarlos al restaurante correspondiente para prepararlos y entregarlos.</li>
       <li>Generar estadísticas agregadas para cada restaurante (por ejemplo, horas con más pedidos), sin identificar a nadie.</li>
       <li>Mantener la seguridad del servicio y atender solicitudes de soporte.</li>
     </ul>
@@ -90,43 +83,36 @@
   <section id="proveedores">
     <h2>5. Proveedores que nos ayudan a prestar el servicio</h2>
     <p>
-      Para funcionar, Sianka se apoya en los siguientes proveedores tecnológicos. Reciben solo los datos necesarios para su función
-      y los tratan por cuenta de Sianka, sin usarlos para fines propios:
+      Para operar, Sianka se apoya en proveedores de servicios tecnológicos que tratan los datos únicamente por cuenta
+      de Sianka, con obligaciones de confidencialidad y sin usarlos para fines propios:
     </p>
-    <div class="legal-tabla-contenedor">
-      <table class="legal-tabla">
-        <thead><tr><th>Proveedor</th><th>Función</th><th>Ubicación</th></tr></thead>
-        <tbody>
-          {% for p in proveedores %}
-          <tr><td>{{ p.nombre }}</td><td>{{ p.funcion }}</td><td>{{ p.pais }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <p>
-      Configuramos el servicio de transcripción para excluir el audio de sus programas de mejora de modelos, y el servicio
-      de procesamiento del lenguaje no usa, conforme a sus términos comerciales, los datos enviados por su API para entrenar modelos.
-    </p>
+    <ul>
+      {% for categoria in categorias_proveedores %}
+      <li>{{ categoria }}.</li>
+      {% endfor %}
+    </ul>
+    <p>Algunos de estos proveedores pueden ubicarse fuera de México.</p>
   </section>
 
   <section id="transferencias">
     <h2>6. Transferencias</h2>
     <p>
       No transferimos tus datos personales a terceros, salvo cuando lo requiera una autoridad competente conforme a la ley.
-      Los proveedores del punto anterior no son terceros que decidan sobre tus datos: solo los procesan para prestarnos su servicio.
+      Los proveedores del punto anterior no deciden sobre tus datos: solo los procesan para prestarnos su servicio.
     </p>
   </section>
 
   <section id="seguridad">
     <h2>7. Cómo protegemos tus datos</h2>
+    <p>
+      Aplicamos medidas de seguridad administrativas, técnicas y físicas para proteger tus datos contra daño, pérdida,
+      alteración, destrucción o uso, acceso o tratamiento no autorizado, entre ellas:
+    </p>
     <ul>
-      <li>Toda la comunicación viaja cifrada (HTTPS/TLS y WSS).</li>
-      <li>El número telefónico, el nombre y las transcripciones se guardan cifrados con AES-256-GCM; la llave de cifrado no se guarda en la base de datos.</li>
-      <li>Cada restaurante solo puede ver los datos de sus propias llamadas y pedidos.</li>
-      <li>El panel muestra los números telefónicos enmascarados (solo los últimos 4 dígitos).</li>
-      <li>La base de datos bloquea el acceso con credenciales públicas; solo nuestro servidor tiene la llave de acceso.</li>
-      <li>Las contraseñas se guardan con hash (scrypt) y el acceso tiene límite de intentos.</li>
-      <li>Nuestros registros técnicos no contienen el contenido de las conversaciones.</li>
+      <li>Comunicaciones cifradas y datos personales cifrados en nuestras bases de datos.</li>
+      <li>Acceso restringido: cada restaurante solo ve la información de sus propios pedidos, y solo cuando la necesita para atenderlos.</li>
+      <li>Controles de acceso y autenticación para el personal autorizado.</li>
+      <li>Eliminación periódica de la información que ya no es necesaria.</li>
     </ul>
     <p>
       Si ocurriera una vulneración de seguridad que afecte de forma significativa tus derechos, te informaremos a ti
@@ -137,8 +123,8 @@
   <section id="conservacion">
     <h2>8. Cuánto tiempo los conservamos</h2>
     <ul>
-      <li><strong>Transcripciones:</strong> se borran automáticamente a los {{ sitio.RETENCION_TRANSCRIPCIONES_DIAS }} días.</li>
-      <li><strong>Pedidos:</strong> mientras el restaurante mantenga su cuenta, o el tiempo que exijan sus obligaciones legales y fiscales.</li>
+      <li><strong>Registro de la conversación, dirección y teléfono de entrega:</strong> se eliminan automáticamente a los {{ sitio.RETENCION_TRANSCRIPCIONES_DIAS }} días.</li>
+      <li><strong>Pedidos (sin tus datos de contacto):</strong> mientras el restaurante mantenga su cuenta, o el tiempo que exijan sus obligaciones legales y fiscales.</li>
       <li><strong>Cuentas del panel:</strong> hasta que el restaurante cancele el servicio.</li>
     </ul>
     <p>Al terminar estos plazos, los datos se eliminan o se anonimizan para que no puedan asociarse contigo.</p>
@@ -151,7 +137,7 @@
       u <strong>oponerte</strong> a su tratamiento, así como revocar tu consentimiento o limitar su uso.
     </p>
     <ul>
-      <li>Si llamaste a un restaurante, escribe al contacto de privacidad que aparece en su aviso. También puedes escribirnos y haremos llegar tu solicitud al restaurante.</li>
+      <li>Si llamaste a un restaurante, dirígete al contacto de privacidad del restaurante. También puedes escribirnos y haremos llegar tu solicitud.</li>
       <li>Si eres usuario del panel, escríbenos{% if sitio.SIANKA_EMAIL_PRIVACIDAD %} a <a href="mailto:{{ sitio.SIANKA_EMAIL_PRIVACIDAD }}">{{ sitio.SIANKA_EMAIL_PRIVACIDAD }}</a>{% endif %}.</li>
     </ul>
     <p>

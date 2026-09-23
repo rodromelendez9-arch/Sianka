@@ -93,9 +93,10 @@ pip install -r requirements.txt
 
 > **¿Ya tenías la base creada con el schema anterior?** Corre una vez, en
 > orden, `migrations/002_multi_restaurante.sql` (slug, variables del agente,
-> tabla `usuarios`) y `migrations/003_datos_personales.sql` (nombre del
-> cliente, datos legales, RLS). Después cifra las filas existentes con
-> `python admin.py cifrar-existentes`.
+> tabla `usuarios`), `migrations/003_datos_personales.sql` (nombre del
+> cliente, datos legales, RLS) y `migrations/004_entregas_domicilio.sql`
+> (entregas a domicilio, aviso opcional). Después cifra las filas existentes
+> con `python admin.py cifrar-existentes`.
 
 ## 3.1 Restaurantes y usuarios
 
@@ -115,15 +116,27 @@ El CSV del menú lleva los encabezados `platillo,precio,ingredientes`. El
 nombre, horario, saludo, tiempo de recolección e indicaciones para el agente
 los edita cada restaurante en **/configuracion**.
 
-## 3.2 Protección de datos personales
+## 3.2 Entregas a domicilio
+
+Cada restaurante las activa en **/configuracion** (costo de envío, pedido
+mínimo, tiempo y zona de entrega). El agente pregunta si es para recoger o a
+domicilio; para envío pide dirección, referencias y forma de pago. El
+servidor valida la orden (menú, mínimo, dirección, teléfono, pago) y le
+devuelve al agente el total real con envío antes de que lo confirme al
+cliente. En el panel, las órdenes a domicilio muestran dirección, teléfono
+completo para el repartidor y el cambio a llevar.
+
+## 3.3 Protección de datos personales
 
 - **Clave de cifrado (obligatoria):** `python admin.py generar-clave` y pon
   el resultado en `DATA_ENCRYPTION_KEY`. Sin ella el servidor no arranca.
   **Respáldala fuera del servidor:** si se pierde, los teléfonos, nombres y
   transcripciones cifrados son irrecuperables.
 - Teléfono, nombre del cliente y transcripción se guardan cifrados
-  (AES-256-GCM); el panel muestra el número enmascarado (`•••• 4567`).
-- Las transcripciones se borran solas a los `RETENCION_TRANSCRIPCIONES_DIAS`.
+  (AES-256-GCM), igual que la dirección y el teléfono de entrega; el panel
+  muestra el número enmascarado (`•••• 4567`) salvo en pedidos a domicilio.
+- Las transcripciones, direcciones y teléfonos de entrega se borran solos a
+  los `RETENCION_TRANSCRIPCIONES_DIAS`.
 - Derechos ARCO: `python admin.py arco-consultar <slug> <telefono>` (acceso)
   y `python admin.py arco-cancelar <slug> <telefono>` (cancelación).
 - Páginas públicas: `/privacidad`, `/privacidad/<slug>` y `/terminos`. Llena

@@ -15,11 +15,13 @@ from services import sitio
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
-PROVEEDORES = [
-    {"nombre": "Twilio Inc.", "funcion": "Telefonia: recibe la llamada y transmite el audio", "pais": "Estados Unidos"},
-    {"nombre": "Deepgram, Inc.", "funcion": "Convierte la voz a texto y el texto a voz", "pais": "Estados Unidos"},
-    {"nombre": "Anthropic, PBC", "funcion": "Interpreta la conversacion para tomar el pedido", "pais": "Estados Unidos"},
-    {"nombre": "Supabase, Inc.", "funcion": "Base de datos donde se guardan pedidos y llamadas", "pais": "Estados Unidos"},
+# Los avisos describen a los proveedores por CATEGORIA, sin nombrarlos: la
+# ley pide informar las transferencias a terceros, no identificar a cada
+# encargado que procesa datos por cuenta de Sianka o del restaurante.
+CATEGORIAS_PROVEEDORES = [
+    "Telefonia, para recibir las llamadas",
+    "Procesamiento de voz y de lenguaje, para entender y atender el pedido",
+    "Alojamiento en la nube, para guardar pedidos y llamadas",
 ]
 
 
@@ -29,7 +31,7 @@ def _contexto(request: Request, ruta: str, titulo: str, descripcion: str, **extr
         "descripcion": descripcion,
         "canonical": sitio.url(ruta),
         "sitio": sitio,
-        "proveedores": PROVEEDORES,
+        "categorias_proveedores": CATEGORIAS_PROVEEDORES,
         "anio": date.today().year,
         **extra,
     }
@@ -37,7 +39,7 @@ def _contexto(request: Request, ruta: str, titulo: str, descripcion: str, **extr
 
 @router.get("/privacidad")
 async def aviso_privacidad(request: Request):
-    restaurantes = [r for r in supabase_client.listar_restaurantes() if r.get("activo")]
+    # Sin lista de restaurantes: publicarla expondria la cartera de clientes.
     return templates.TemplateResponse(
         request,
         "publico/privacidad.html",
@@ -47,7 +49,6 @@ async def aviso_privacidad(request: Request):
             "Aviso de privacidad",
             "Como Sianka protege los datos personales de los restaurantes que usan la plataforma "
             "y de las personas que llaman para hacer un pedido.",
-            restaurantes=restaurantes,
         ),
     )
 
@@ -67,6 +68,9 @@ async def aviso_privacidad_restaurante(request: Request, slug: str):
             f"Como {restaurante['nombre']} usa y protege los datos de las personas que llaman "
             "para hacer un pedido por telefono.",
             restaurante=restaurante,
+            # Accesible por enlace directo (el restaurante lo publica en su
+            # menu o redes), pero fuera de buscadores y del sitemap.
+            robots="noindex, follow",
         ),
     )
 
@@ -100,8 +104,8 @@ async def robots_txt() -> str:
 
 @router.get("/sitemap.xml")
 async def sitemap() -> Response:
+    # Los avisos por restaurante no se listan (no exponer la cartera de clientes).
     rutas = ["/privacidad", "/terminos"]
-    rutas += [f"/privacidad/{r['slug']}" for r in supabase_client.listar_restaurantes() if r.get("activo")]
     urls = "".join(f"  <url><loc>{escape(sitio.url(ruta))}</loc></url>\n" for ruta in rutas)
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
