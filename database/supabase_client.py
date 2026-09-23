@@ -327,13 +327,6 @@ def get_ordenes_activas(restaurante_id: str) -> list[dict]:
     return [_descifrar_fila(f, CAMPOS_CIFRADOS_ORDEN) for f in response.data or []]
 
 
-def get_orden(orden_id: str) -> Optional[dict]:
-    client = get_client()
-    response = client.table("ordenes").select("*").eq("id", orden_id).limit(1).execute()
-    data = response.data
-    return _descifrar_fila(data[0], CAMPOS_CIFRADOS_ORDEN) if data else None
-
-
 # ---------------- Proteccion de datos (ARCO y retencion) ----------------
 
 def get_llamadas_por_telefono(restaurante_id: str, telefono: str) -> list[dict]:
