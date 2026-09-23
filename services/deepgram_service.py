@@ -111,9 +111,10 @@ class DeepgramStreamingService:
         self._socket = None
 
 
-async def sintetizar_audio_mulaw(texto: str) -> bytes:
+async def sintetizar_audio_mulaw(texto: str, modelo: Optional[str] = None) -> bytes:
     """Convierte texto a audio mulaw 8kHz sin encabezado (formato que Twilio
-    Media Streams requiere), usando Deepgram Aura TTS."""
+    Media Streams requiere), usando Deepgram Aura TTS. `modelo` es la voz del
+    restaurante (columna `voz_tts`); si no tiene, se usa DEEPGRAM_TTS_MODEL."""
     if not DEEPGRAM_API_KEY:
         raise RuntimeError("DEEPGRAM_API_KEY no esta configurado en .env")
 
@@ -121,7 +122,7 @@ async def sintetizar_audio_mulaw(texto: str) -> bytes:
 
     audio_stream = client.speak.v1.audio.generate(
         text=texto,
-        model=DEEPGRAM_TTS_MODEL,
+        model=modelo or DEEPGRAM_TTS_MODEL,
         encoding="mulaw",
         sample_rate=8000,
         container="none",

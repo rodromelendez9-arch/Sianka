@@ -4,7 +4,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from services.auth_service import cerrar_sesion, iniciar_sesion, verificar_password
+from services.auth_service import autenticar, cerrar_sesion, iniciar_sesion
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -31,31 +31,33 @@ def _registrar_intento_fallido(ip: str) -> None:
 
 @router.get("/login")
 async def login_page(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"error": None})
+    return templates.TemplateResponse(request, "login.html", {"error": None, "email": ""})
 
 
 @router.post("/login")
-async def login_submit(request: Request, password: str = Form(...)):
+async def login_submit(request: Request, email: str = Form(...), password: str = Form(...)):
     ip = request.client.host if request.client else "desconocido"
 
     if _ip_bloqueada(ip):
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo."},
+            {"error": "Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo.", "email": email},
             status_code=429,
         )
 
-    if not verificar_password(password):
+    usuario = autenticar(email, password)
+    if not usuario:
         _registrar_intento_fallido(ip)
+        # Mismo mensaje exista o no el correo: no revela quien tiene cuenta.
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "Contrasena incorrecta"},
+            {"error": "Correo o contrasena incorrectos", "email": email},
             status_code=401,
         )
 
-    iniciar_sesion(request)
+    iniciar_sesion(request, usuario)
     return RedirectResponse(url="/", status_code=303)
 
 

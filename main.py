@@ -2,18 +2,28 @@ import os
 import secrets
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exception_handlers import http_exception_handler
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 # Debe ir ANTES de importar las rutas: varios servicios leen sus variables
-# con os.getenv() al importarse (p. ej. DASHBOARD_PASSWORD en auth_service).
+# con os.getenv() al importarse (p. ej. TWILIO_AUTH_TOKEN en twilio_routes).
 load_dotenv()
 
 from routes import auth_routes, dashboard_routes, order_routes, twilio_routes  # noqa: E402
 
-app = FastAPI(title="Voice Agent - Tacos El Güero")
+app = FastAPI(title="Sianka - Voice Agent")
+
+
+@app.exception_handler(HTTPException)
+async def redirigir_a_login(request: Request, exc: HTTPException):
+    """Sin sesion, las PAGINAS del dashboard mandan al login en vez de mostrar
+    un JSON de error; la API (/api/*) sigue respondiendo 401 para el JS."""
+    if exc.status_code == 401 and not request.url.path.startswith("/api/"):
+        return RedirectResponse(url="/login", status_code=303)
+    return await http_exception_handler(request, exc)
 
 HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "true").lower() != "false"
 

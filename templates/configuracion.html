@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Configuracion{% endblock %}
+
+{% block content %}
+<section class="seccion">
+  <h2 class="seccion-titulo">Configuracion del restaurante</h2>
+
+  {% if mensaje %}<div class="config-aviso" role="status">{{ mensaje }}</div>{% endif %}
+  {% if error %}<div class="config-aviso error" role="alert">{{ error }}</div>{% endif %}
+
+  <div class="card">
+    <form method="post" action="/configuracion" class="config-form">
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="slug">Identificador</label>
+          <input type="text" id="slug" value="{{ restaurante.slug }}" readonly>
+        </div>
+        <div class="form-group">
+          <label for="twilio">Numero de telefono del agente</label>
+          <input type="text" id="twilio" value="{{ restaurante.twilio_number or 'Sin asignar' }}" readonly>
+        </div>
+      </div>
+
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="nombre">Nombre</label>
+          <input type="text" id="nombre" name="nombre" value="{{ restaurante.nombre }}" maxlength="120" required>
+        </div>
+        <div class="form-group">
+          <label for="ciudad">Ciudad</label>
+          <input type="text" id="ciudad" name="ciudad" value="{{ restaurante.ciudad or '' }}" maxlength="120">
+        </div>
+      </div>
+
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="horario">Horario</label>
+          <input type="text" id="horario" name="horario" value="{{ restaurante.horario or '' }}" maxlength="300"
+                 placeholder="Lunes a domingo de 13:00 a 23:00">
+        </div>
+        <div class="form-group">
+          <label for="tiempo">Tiempo de recoleccion (minutos)</label>
+          <input type="number" id="tiempo" name="tiempo_recoleccion_min" min="1" max="180"
+                 value="{{ restaurante.tiempo_recoleccion_min or tiempo_default }}" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="saludo">Saludo al contestar</label>
+        <input type="text" id="saludo" name="saludo" value="{{ restaurante.saludo or '' }}" maxlength="300"
+               placeholder="{{ saludo_default }}">
+        <span class="form-ayuda">Lo primero que escucha el cliente. Dejalo vacio para usar el saludo por defecto.</span>
+      </div>
+
+      <div class="form-group">
+        <label for="instrucciones">Indicaciones para el agente</label>
+        <textarea id="instrucciones" name="instrucciones_extra" maxlength="2000" rows="4"
+                  placeholder="Ej.: No hacemos envios a domicilio. Los martes hay 2x1 en tacos de pollo.">{{ restaurante.instrucciones_extra or '' }}</textarea>
+        <span class="form-ayuda">Promociones, politicas o datos que el agente debe mencionar cuando aplique.</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

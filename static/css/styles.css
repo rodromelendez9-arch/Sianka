@@ -790,6 +790,71 @@ button {
   border-color: var(--primary);
 }
 
+/* ---------------- Configuracion ---------------- */
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  max-width: 720px;
+}
+
+.config-fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 620px) {
+  .config-fila {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  color: var(--text-1);
+  resize: vertical;
+  min-height: 5rem;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.form-ayuda {
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
+.form-group input[readonly] {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.config-aviso {
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.config-aviso.error {
+  color: var(--primary);
+}
+
+.config-form .btn {
+  align-self: flex-start;
+}
+
 /* ---------------- Responsive ---------------- */
 
 @media (max-width: 680px) {

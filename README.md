@@ -91,6 +91,28 @@ pip install -r requirements.txt
    - `Project URL` → `SUPABASE_URL`
    - `service_role` key → `SUPABASE_KEY` (el backend escribe datos, necesita permisos completos)
 
+> **¿Ya tenías la base creada con el schema anterior?** Corre una vez
+> `migrations/002_multi_restaurante.sql` en el SQL Editor (agrega `slug`,
+> las variables del agente y la tabla `usuarios`).
+
+## 3.1 Restaurantes y usuarios
+
+Un mismo despliegue atiende a N restaurantes. Cada uno se identifica por su
+**slug** (`tacos-el-guero`) y recibe llamadas en **su propio número de
+Twilio**, que decide qué restaurante contesta. Cada usuario del dashboard
+pertenece a un restaurante y solo ve sus órdenes, llamadas, menú y reportes.
+
+```bash
+python admin.py listar
+python admin.py nuevo-restaurante "Tortas La Abuela" --ciudad "Puebla" --twilio +522221234567 --menu menu.csv
+python admin.py nuevo-usuario tortas-la-abuela dueno@tortaslaabuela.mx
+python admin.py editar-restaurante tacos-el-guero --twilio +52...   # asignar/cambiar número
+```
+
+El CSV del menú lleva los encabezados `platillo,precio,ingredientes`. El
+nombre, horario, saludo, tiempo de recolección e indicaciones para el agente
+los edita cada restaurante en **/configuracion**.
+
 ## 4. Configurar variables de entorno
 
 Copia `.env.example` a `.env` y llena todos los valores:

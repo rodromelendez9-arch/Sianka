@@ -24,22 +24,16 @@ def get_client() -> Client:
 
 # ---------------- Restaurantes ----------------
 
-def get_restaurante_activo() -> Optional[dict]:
+def get_restaurante(restaurante_id: str) -> Optional[dict]:
     client = get_client()
-    response = (
-        client.table("restaurantes")
-        .select("*")
-        .eq("activo", True)
-        .limit(1)
-        .execute()
-    )
+    response = client.table("restaurantes").select("*").eq("id", restaurante_id).limit(1).execute()
     data = response.data
     return data[0] if data else None
 
 
-def get_restaurante(restaurante_id: str) -> Optional[dict]:
+def get_restaurante_by_slug(slug: str) -> Optional[dict]:
     client = get_client()
-    response = client.table("restaurantes").select("*").eq("id", restaurante_id).limit(1).execute()
+    response = client.table("restaurantes").select("*").eq("slug", slug).limit(1).execute()
     data = response.data
     return data[0] if data else None
 
@@ -56,6 +50,68 @@ def get_restaurante_by_twilio_number(twilio_number: str) -> Optional[dict]:
     )
     data = response.data
     return data[0] if data else None
+
+
+def listar_restaurantes() -> list[dict]:
+    client = get_client()
+    response = client.table("restaurantes").select("*").order("created_at").execute()
+    return response.data or []
+
+
+def crear_restaurante(**campos) -> dict:
+    client = get_client()
+    response = client.table("restaurantes").insert(campos).execute()
+    return response.data[0]
+
+
+def actualizar_restaurante(restaurante_id: str, **campos) -> Optional[dict]:
+    client = get_client()
+    response = client.table("restaurantes").update(campos).eq("id", restaurante_id).execute()
+    return response.data[0] if response.data else None
+
+
+# ---------------- Usuarios ----------------
+
+def get_usuario_por_email(email: str) -> Optional[dict]:
+    client = get_client()
+    response = (
+        client.table("usuarios")
+        .select("*")
+        .eq("email", email.strip().lower())
+        .eq("activo", True)
+        .limit(1)
+        .execute()
+    )
+    data = response.data
+    return data[0] if data else None
+
+
+def crear_usuario(restaurante_id: str, email: str, password_hash: str, nombre: str = "") -> dict:
+    client = get_client()
+    response = (
+        client.table("usuarios")
+        .insert(
+            {
+                "restaurante_id": restaurante_id,
+                "email": email.strip().lower(),
+                "password_hash": password_hash,
+                "nombre": nombre,
+            }
+        )
+        .execute()
+    )
+    return response.data[0]
+
+
+def actualizar_password_usuario(email: str, password_hash: str) -> Optional[dict]:
+    client = get_client()
+    response = (
+        client.table("usuarios")
+        .update({"password_hash": password_hash})
+        .eq("email", email.strip().lower())
+        .execute()
+    )
+    return response.data[0] if response.data else None
 
 
 # ---------------- Menu ----------------
@@ -108,26 +164,40 @@ def crear_platillo(restaurante_id: str, platillo: str, precio: float, ingredient
     return response.data[0]
 
 
-def actualizar_platillo(menu_id: str, **campos) -> Optional[dict]:
-    client = get_client()
-    response = client.table("menus").update(campos).eq("id", menu_id).execute()
-    return response.data[0] if response.data else None
-
-
-def actualizar_disponibilidad(menu_id: str, disponible: bool) -> Optional[dict]:
+def actualizar_platillo(menu_id: str, restaurante_id: str, **campos) -> Optional[dict]:
     client = get_client()
     response = (
         client.table("menus")
-        .update({"disponible": disponible})
+        .update(campos)
         .eq("id", menu_id)
+        .eq("restaurante_id", restaurante_id)
         .execute()
     )
     return response.data[0] if response.data else None
 
 
-def eliminar_platillo(menu_id: str) -> None:
+def actualizar_disponibilidad(menu_id: str, restaurante_id: str, disponible: bool) -> Optional[dict]:
     client = get_client()
-    client.table("menus").update({"activo": False}).eq("id", menu_id).execute()
+    response = (
+        client.table("menus")
+        .update({"disponible": disponible})
+        .eq("id", menu_id)
+        .eq("restaurante_id", restaurante_id)
+        .execute()
+    )
+    return response.data[0] if response.data else None
+
+
+def eliminar_platillo(menu_id: str, restaurante_id: str) -> bool:
+    client = get_client()
+    response = (
+        client.table("menus")
+        .update({"activo": False})
+        .eq("id", menu_id)
+        .eq("restaurante_id", restaurante_id)
+        .execute()
+    )
+    return bool(response.data)
 
 
 # ---------------- Llamadas ----------------
@@ -193,12 +263,13 @@ def crear_orden(
     return response.data[0]
 
 
-def actualizar_status_orden(orden_id: str, status: str) -> Optional[dict]:
+def actualizar_status_orden(orden_id: str, restaurante_id: str, status: str) -> Optional[dict]:
     client = get_client()
     response = (
         client.table("ordenes")
         .update({"status": status})
         .eq("id", orden_id)
+        .eq("restaurante_id", restaurante_id)
         .execute()
     )
     return response.data[0] if response.data else None

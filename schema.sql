@@ -11,13 +11,40 @@ create extension if not exists "pgcrypto";
 -- ------------------------------------------------------------
 create table if not exists restaurantes (
     id uuid primary key default gen_random_uuid(),
+    -- Identificador legible y unico (p. ej. "tacos-el-guero"): es como se
+    -- refiere uno al restaurante en admin.py y en los logs.
+    slug text not null unique,
     nombre text not null,
     ciudad text,
     horario text,
-    twilio_number text,
+    -- Numero de Twilio al que marcan los clientes; decide que restaurante
+    -- contesta cada llamada.
+    twilio_number text unique,
+    -- Variables del agente de voz (si son null se usan los defaults del codigo)
+    saludo text,
+    tiempo_recoleccion_min integer default 20,
+    instrucciones_extra text,
+    voz_tts text,
     activo boolean default true,
     created_at timestamptz default now()
 );
+
+-- ------------------------------------------------------------
+-- Tabla: usuarios (acceso al dashboard, uno o varios por restaurante)
+-- ------------------------------------------------------------
+create table if not exists usuarios (
+    id uuid primary key default gen_random_uuid(),
+    restaurante_id uuid not null references restaurantes(id),
+    email text not null,
+    password_hash text not null,
+    nombre text,
+    activo boolean default true,
+    created_at timestamptz default now()
+);
+
+create unique index if not exists idx_usuarios_email on usuarios(lower(email));
+create index if not exists idx_usuarios_restaurante on usuarios(restaurante_id);
+alter table usuarios enable row level security;
 
 -- ------------------------------------------------------------
 -- Tabla: menus
@@ -92,8 +119,11 @@ create trigger trg_ordenes_updated_at
 -- Datos de prueba: Tacos El Güero, Mérida Yucatán
 -- ============================================================
 
-insert into restaurantes (nombre, ciudad, horario, twilio_number, activo)
+-- Para dar de alta mas restaurantes (y los usuarios del dashboard) usa
+-- `python admin.py` en vez de SQL a mano.
+insert into restaurantes (slug, nombre, ciudad, horario, twilio_number, activo)
 values (
+    'tacos-el-guero',
     'Tacos El Güero',
     'Mérida, Yucatán',
     'Lunes a domingo de 13:00 a 23:00',

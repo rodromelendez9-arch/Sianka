@@ -1,17 +1,32 @@
 from typing import Any
 
+# Defaults para restaurantes que no han personalizado estos campos (columnas
+# null en la tabla `restaurantes`). Se editan por restaurante en /configuracion.
+TIEMPO_RECOLECCION_DEFAULT = 20
+
 
 def build_saludo(restaurante: dict[str, Any]) -> str:
     """Lo primero que escucha el cliente al descolgar. Es fijo (no pasa por
-    Claude) para que suene al instante, sin esperar al LLM ni al silencio."""
+    Claude) para que suene al instante, sin esperar al LLM ni al silencio.
+    Cada restaurante puede definir el suyo en la columna `saludo`."""
+    personalizado = (restaurante.get("saludo") or "").strip()
+    if personalizado:
+        return personalizado
     nombre = restaurante.get("nombre") or "el restaurante"
     return f"¡Hola, gracias por llamar a {nombre}! ¿Qué te preparamos hoy?"
 
 
+def tiempo_recoleccion(restaurante: dict[str, Any]) -> str:
+    minutos = restaurante.get("tiempo_recoleccion_min") or TIEMPO_RECOLECCION_DEFAULT
+    return f"{minutos} minutos"
+
+
 def build_system_prompt(restaurante: dict[str, Any], menu: list[dict[str, Any]]) -> str:
-    nombre = restaurante.get("nombre", "el restaurante")
-    ciudad = restaurante.get("ciudad", "")
-    horario = restaurante.get("horario", "")
+    nombre = restaurante.get("nombre") or "el restaurante"
+    ciudad = restaurante.get("ciudad") or ""
+    horario = restaurante.get("horario") or "No especificado"
+    recoleccion = tiempo_recoleccion(restaurante)
+    ubicacion = f", un restaurante en {ciudad}" if ciudad else ", un restaurante"
 
     lineas_menu = []
     for item in menu:
@@ -23,13 +38,24 @@ def build_system_prompt(restaurante: dict[str, Any], menu: list[dict[str, Any]])
         lineas_menu.append(linea)
     menu_texto = "\n".join(lineas_menu) if lineas_menu else "No hay platillos disponibles en este momento."
 
-    return f"""Eres el agente de voz de "{nombre}", un restaurante en {ciudad}. Contestas llamadas telefonicas reales en espanol mexicano, de forma calida, natural y eficiente, como lo haria una persona que atiende el telefono en el restaurante.
+    instrucciones_extra = (restaurante.get("instrucciones_extra") or "").strip()
+    bloque_extra = (
+        f"""
+INDICACIONES DEL RESTAURANTE (aplicalas siempre que no contradigan las reglas estrictas de abajo):
+{instrucciones_extra}
+"""
+        if instrucciones_extra
+        else ""
+    )
+
+    return f"""Eres el agente de voz de "{nombre}"{ubicacion}. Contestas llamadas telefonicas reales en espanol mexicano, de forma calida, natural y eficiente, como lo haria una persona que atiende el telefono en el restaurante.
 
 HORARIO: {horario}
+TIEMPO DE RECOLECCION: {recoleccion}
 
 MENU DISPONIBLE (estos son los UNICOS platillos y bebidas que existen):
 {menu_texto}
-
+{bloque_extra}
 REGLAS ESTRICTAS:
 1. Ya saludaste al contestar la llamada (es tu primer mensaje del historial). No vuelvas a saludar ni a presentarte; continua la conversacion desde lo que diga el cliente.
 2. Identifica la intencion del cliente lo antes posible: quiere hacer una orden, tiene una duda (ingredientes, horario, precio) o quiere otra cosa.
@@ -37,9 +63,9 @@ REGLAS ESTRICTAS:
 4. Cuando el cliente pida platillos, confirma cantidad y variante si aplica.
 5. Antes de cerrar la orden, repite en voz alta todos los platillos, cantidades y el total para que el cliente confirme que esta correcto.
 6. Si el cliente te interrumpe o cambia de opinion a la mitad, ajusta la orden sin reiniciar toda la conversacion ni sonar confundido.
-7. Da el tiempo estimado de recoleccion (usualmente 20 minutos) al confirmar la orden.
+7. Al confirmar la orden, da el tiempo estimado de recoleccion: {recoleccion}.
 8. Se breve: son llamadas de voz, no textos largos. Habla en oraciones cortas y naturales, como una persona real por telefono.
 9. Si no entiendes algo, pide que lo repitan en vez de adivinar.
 10. Nunca reveles que eres una inteligencia artificial a menos que te lo pregunten directamente.
 
-Cuando el cliente confirme la orden completa, usa la herramienta "registrar_orden" con los items, el total y el tiempo de recoleccion. Solo llama esa herramienta despues de que el cliente haya confirmado explicitamente toda la orden."""
+Cuando el cliente confirme la orden completa, usa la herramienta "registrar_orden" con los items, el total y el tiempo de recoleccion ({recoleccion}). Solo llama esa herramienta despues de que el cliente haya confirmado explicitamente toda la orden."""

@@ -13,6 +13,7 @@ from twilio.request_validator import RequestValidator
 from twilio.twiml.voice_response import Connect, Stream, VoiceResponse
 
 from database import supabase_client
+from prompts.agent_prompt import tiempo_recoleccion
 from services.claude_service import ClaudeConversationService
 from services.deepgram_service import DeepgramStreamingService, sintetizar_audio_mulaw
 from services.rate_limit_service import limitar
@@ -119,17 +120,21 @@ async def incoming_call(request: Request) -> Response:
     telefono_cliente = str(form.get("From", "desconocido"))
     numero_llamado = str(form.get("To", ""))
 
-    # Resuelve el restaurante por el numero de Twilio al que realmente
-    # marco el cliente -- asi un mismo despliegue puede atender a varios
-    # restaurantes, cada uno con su propio numero. Si no hay coincidencia
-    # (instalacion de un solo restaurante, o twilio_number aun sin
-    # configurar en la fila) cae de vuelta al unico restaurante activo,
-    # que es el comportamiento que ya tenia el MVP.
+    # El numero de Twilio al que marco el cliente identifica al restaurante:
+    # cada restaurante tiene el suyo (columna twilio_number, se asigna con
+    # admin.py). No hay "restaurante por defecto": con varios restaurantes,
+    # una llamada a un numero desconocido contestada por otro negocio seria
+    # peor que no contestarla.
     restaurante = (
         supabase_client.get_restaurante_by_twilio_number(numero_llamado) if numero_llamado else None
     )
     if not restaurante:
-        restaurante = supabase_client.get_restaurante_activo()
+        logger.error(
+            "Llamada a %s sin restaurante asignado. Asignalo con: "
+            "python admin.py editar-restaurante <slug> --twilio %s",
+            numero_llamado,
+            numero_llamado,
+        )
 
     response = VoiceResponse()
 
@@ -191,6 +196,7 @@ async def media_stream(websocket: WebSocket) -> None:
     orden_tomada = False
     llamada_terminada = False
 
+    restaurante: dict = {}
     claude_service: Optional[ClaudeConversationService] = None
     deepgram_service: Optional[DeepgramStreamingService] = None
     menu: list[dict] = []
@@ -211,6 +217,7 @@ async def media_stream(websocket: WebSocket) -> None:
 
         transcripcion_completa.append(f"Agente: {texto}")
         await manager.broadcast(
+            restaurante_id,
             {
                 "evento": "transcripcion",
                 "texto": texto,
@@ -222,7 +229,7 @@ async def media_stream(websocket: WebSocket) -> None:
         if llamada_terminada:
             return
 
-        audio = await sintetizar_audio_mulaw(texto)
+        audio = await sintetizar_audio_mulaw(texto, restaurante.get("voz_tts"))
         if await _enviar_audio_a_twilio(websocket, stream_sid, audio):
             marks_pendientes += 1
 
@@ -257,6 +264,7 @@ async def media_stream(websocket: WebSocket) -> None:
 
         if texto:
             await manager.broadcast(
+                restaurante_id,
                 {
                     "evento": "transcripcion",
                     "texto": texto,
@@ -284,7 +292,7 @@ async def media_stream(websocket: WebSocket) -> None:
             orden = resultado["orden"]
             if orden and restaurante_id:
                 items_validados, total_validado = _validar_y_recalcular_orden(orden["items"], menu)
-                tiempo_recoleccion = orden.get("tiempo_recoleccion", "20 minutos")
+                recoleccion = orden.get("tiempo_recoleccion") or tiempo_recoleccion(restaurante)
 
                 if not items_validados:
                     logger.warning(
@@ -298,16 +306,17 @@ async def media_stream(websocket: WebSocket) -> None:
                         llamada_id=llamada_id,
                         items=items_validados,
                         total=total_validado,
-                        tiempo_recoleccion=tiempo_recoleccion,
+                        tiempo_recoleccion=recoleccion,
                     )
 
                     await manager.broadcast(
+                        restaurante_id,
                         {
                             "evento": "orden_nueva",
                             "orden_id": nueva_orden["id"],
                             "items": items_validados,
                             "total": total_validado,
-                            "recoleccion": tiempo_recoleccion,
+                            "recoleccion": recoleccion,
                             "status": "nueva",
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         }
@@ -376,15 +385,15 @@ async def media_stream(websocket: WebSocket) -> None:
                 telefono_cliente = datos_token["telefono_cliente"]
                 restaurante_id = datos_token["restaurante_id"]
 
-                # Se busca por id (no get_restaurante_activo) porque con mas
-                # de un restaurante activo simultaneamente, "el activo" ya no
-                # identifica de forma unica cual contesto esta llamada.
-                restaurante = supabase_client.get_restaurante(restaurante_id)
+                # El restaurante viene del token firmado que genero el webhook
+                # a partir del numero marcado: nombre, menu, saludo y voz de
+                # ESTA llamada son los de ese restaurante.
+                restaurante = supabase_client.get_restaurante(restaurante_id) or {}
                 menu = supabase_client.get_menu_disponible(restaurante_id)
                 llamada = supabase_client.crear_llamada(restaurante_id, telefono_cliente)
                 llamada_id = llamada["id"]
 
-                claude_service = ClaudeConversationService(restaurante or {}, menu)
+                claude_service = ClaudeConversationService(restaurante, menu)
                 deepgram_service = DeepgramStreamingService(
                     on_transcript=on_transcript,
                     on_utterance_end=on_utterance_end,
@@ -392,6 +401,7 @@ async def media_stream(websocket: WebSocket) -> None:
                 await deepgram_service.start()
 
                 await manager.broadcast(
+                    restaurante_id,
                     {
                         "evento": "llamada_activa",
                         "telefono_cliente": telefono_cliente,
@@ -446,6 +456,7 @@ async def media_stream(websocket: WebSocket) -> None:
             )
 
         await manager.broadcast(
+            restaurante_id,
             {
                 "evento": "llamada_terminada",
                 "llamada_id": llamada_id,
