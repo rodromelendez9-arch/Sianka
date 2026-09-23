@@ -1,12 +1,14 @@
+import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, Request, WebSocket, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
 
 from database import supabase_client
-from prompts.agent_prompt import TIEMPO_RECOLECCION_DEFAULT, build_saludo
+from prompts.agent_prompt import TIEMPO_RECOLECCION_DEFAULT, aviso_privacidad_breve, saludo_inicial
 from routes.order_routes import DIAS_POR_PERIODO, SEMANAS_HISTORIAL_PREDICCION
 from services.auth_service import require_login, restaurante_de_sesion
+from services.cifrado_service import enmascarar_telefono
 from services.prediccion_service import calcular_prediccion_demanda
 from services.reportes_service import calcular_reporte
 from services.websocket_manager import manager
@@ -15,6 +17,7 @@ from services.websocket_manager import manager
 # las consultas se filtran por el restaurante del usuario que inicio sesion.
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+templates.env.filters["enmascarar"] = enmascarar_telefono
 
 # Router separado: `require_login` depende de `Request` y no se resuelve en
 # conexiones WebSocket (ver auth_service.py). La sesion se valida a mano
@@ -102,7 +105,11 @@ def _render_configuracion(request: Request, restaurante: dict, mensaje: str = ""
         "configuracion.html",
         {
             "restaurante": restaurante,
-            "saludo_default": build_saludo({"nombre": restaurante.get("nombre")}),
+            "saludo_default": saludo_inicial({"nombre": restaurante.get("nombre")}),
+            "aviso_breve": aviso_privacidad_breve(),
+            "datos_legales_completos": all(
+                restaurante.get(c) for c in ("razon_social", "domicilio", "email_privacidad")
+            ),
             "tiempo_default": TIEMPO_RECOLECCION_DEFAULT,
             "mensaje": mensaje,
             "error": error,
@@ -126,6 +133,9 @@ async def configuracion_guardar(
     saludo: str = Form(""),
     tiempo_recoleccion_min: int = Form(TIEMPO_RECOLECCION_DEFAULT),
     instrucciones_extra: str = Form(""),
+    razon_social: str = Form(""),
+    domicilio: str = Form(""),
+    email_privacidad: str = Form(""),
     restaurante_id: str = Depends(require_login),
 ):
     # El slug y el numero de Twilio NO se editan aqui: el numero decide que
@@ -141,15 +151,25 @@ async def configuracion_guardar(
             request, restaurante, error="El tiempo de recoleccion debe estar entre 1 y 180 minutos."
         )
 
+    email_privacidad = email_privacidad.strip().lower()
+    if email_privacidad and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email_privacidad):
+        return _render_configuracion(
+            request, restaurante, error="El correo de privacidad no parece valido."
+        )
+
     restaurante = supabase_client.actualizar_restaurante(
         restaurante_id,
         nombre=nombre[:120],
         ciudad=ciudad.strip()[:120],
         horario=horario.strip()[:300],
-        # Vacio = usar el saludo por defecto (que ya incluye el nombre).
+        # Vacio = usar el saludo por defecto (que ya incluye el nombre). El
+        # aviso de privacidad se agrega siempre despues, no es editable.
         saludo=saludo.strip()[:300] or None,
         tiempo_recoleccion_min=tiempo_recoleccion_min,
         instrucciones_extra=instrucciones_extra.strip()[:2000] or None,
+        razon_social=razon_social.strip()[:200] or None,
+        domicilio=domicilio.strip()[:300] or None,
+        email_privacidad=email_privacidad[:200] or None,
     )
     return _render_configuracion(
         request, restaurante, mensaje="Cambios guardados. Aplican desde la siguiente llamada."

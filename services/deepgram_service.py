@@ -9,6 +9,12 @@ from deepgram.core.events import EventType
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 DEEPGRAM_TTS_MODEL = os.getenv("DEEPGRAM_TTS_MODEL", "aura-2-estrella-es")
 
+# Excluye el audio de las llamadas del Model Improvement Program de Deepgram
+# (que no lo use para entrenar sus modelos). Deepgram indica que puede tener
+# impacto en precio: https://dpgr.am/deepgram-mip -- se deja activado por
+# defecto porque son datos personales de terceros (los clientes que llaman).
+DEEPGRAM_MIP_OPT_OUT = os.getenv("DEEPGRAM_MIP_OPT_OUT", "true").lower() != "false"
+
 logger = logging.getLogger(__name__)
 
 # (texto, is_final, speech_final). `is_final` solo marca que ese SEGMENTO ya
@@ -58,6 +64,7 @@ class DeepgramStreamingService:
             # Respaldo cuando hay ruido de fondo y speech_final no llega.
             utterance_end_ms=1000,
             vad_events="true",
+            mip_opt_out="true" if DEEPGRAM_MIP_OPT_OUT else None,
         )
         self._socket = await self._connection_cm.__aenter__()
         self._socket.on(EventType.MESSAGE, self._on_message)
@@ -126,6 +133,7 @@ async def sintetizar_audio_mulaw(texto: str, modelo: Optional[str] = None) -> by
         encoding="mulaw",
         sample_rate=8000,
         container="none",
+        mip_opt_out=True if DEEPGRAM_MIP_OPT_OUT else None,
     )
 
     audio_bytes = bytearray()

@@ -19,6 +19,10 @@ REGISTRAR_ORDEN_TOOL = {
     "input_schema": {
         "type": "object",
         "properties": {
+            "nombre_cliente": {
+                "type": "string",
+                "description": "Nombre de pila con el que el cliente pidio la orden, tal como lo dijo.",
+            },
             "items": {
                 "type": "array",
                 "items": {
@@ -35,7 +39,7 @@ REGISTRAR_ORDEN_TOOL = {
             "total": {"type": "number"},
             "tiempo_recoleccion": {"type": "string"},
         },
-        "required": ["items", "total", "tiempo_recoleccion"],
+        "required": ["nombre_cliente", "items", "total", "tiempo_recoleccion"],
     },
 }
 

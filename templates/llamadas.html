@@ -10,6 +10,7 @@
   <table class="tabla-llamadas">
     <thead>
       <tr>
+        <th>Cliente</th>
         <th>Telefono</th>
         <th>Duracion</th>
         <th>Resultado</th>
@@ -19,7 +20,9 @@
     <tbody>
       {% for llamada in llamadas %}
       <tr>
-        <td>{{ llamada.telefono_cliente or "Desconocido" }}</td>
+        <td>{{ llamada.nombre_cliente or "—" }}</td>
+        {# Enmascarado: el panel no necesita el numero completo para operar #}
+        <td>{{ llamada.telefono_cliente | enmascarar }}</td>
         <td>
           {% if llamada.duracion_segundos %}
             {{ (llamada.duracion_segundos // 60) }}:{{ "%02d"|format(llamada.duracion_segundos % 60) }}

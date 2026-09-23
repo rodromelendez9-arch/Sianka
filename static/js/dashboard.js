@@ -163,6 +163,13 @@
     header.appendChild(numero);
     header.appendChild(tiempo);
 
+    let cliente = null;
+    if (orden.nombre_cliente) {
+      cliente = document.createElement("div");
+      cliente.className = "orden-cliente";
+      cliente.textContent = orden.nombre_cliente;
+    }
+
     const pill = document.createElement("span");
     pill.className = `status-pill status-${card.dataset.status}`;
     pill.textContent = ESTADO_LABELS[card.dataset.status] || card.dataset.status;
@@ -203,6 +210,7 @@
     acciones.setAttribute("data-acciones", "");
 
     card.appendChild(header);
+    if (cliente) card.appendChild(cliente);
     card.appendChild(pill);
     card.appendChild(items);
     card.appendChild(total);

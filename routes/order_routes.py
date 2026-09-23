@@ -7,6 +7,7 @@ from database import supabase_client
 from models.order import OrdenStatusUpdate
 from models.restaurant import DisponibilidadUpdate, PlatilloCreate, PlatilloUpdate
 from services.auth_service import require_login
+from services.cifrado_service import enmascarar_telefono
 from services.prediccion_service import calcular_prediccion_demanda
 from services.rate_limit_service import limitar
 from services.reportes_service import calcular_reporte
@@ -92,7 +93,13 @@ async def prediccion_demanda(restaurante_id: str = Depends(require_login)) -> di
 @router.get("/llamadas")
 async def listar_llamadas(limite: int = 50, restaurante_id: str = Depends(require_login)) -> list[dict]:
     limite = max(1, min(limite, 200))
-    return supabase_client.get_llamadas(restaurante_id, limite)
+    llamadas = supabase_client.get_llamadas(restaurante_id, limite)
+    # Minimizacion: la API del dashboard no expone el numero completo ni la
+    # huella; el numero solo se consulta completo via ARCO (admin.py).
+    for llamada in llamadas:
+        llamada["telefono_cliente"] = enmascarar_telefono(llamada.get("telefono_cliente"))
+        llamada.pop("telefono_hash", None)
+    return llamadas
 
 
 @router.get("/menu")

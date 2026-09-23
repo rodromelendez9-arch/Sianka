@@ -5,6 +5,8 @@ from typing import Optional
 from dotenv import load_dotenv
 from supabase import Client, create_client
 
+from services import cifrado_service
+
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -201,6 +203,26 @@ def eliminar_platillo(menu_id: str, restaurante_id: str) -> bool:
 
 
 # ---------------- Llamadas ----------------
+#
+# Los datos personales (telefono, nombre, transcripcion) se cifran aqui al
+# escribir y se descifran al leer (ver services/cifrado_service.py): el resto
+# del codigo trabaja con texto normal y la base nunca los guarda en claro.
+
+CAMPOS_CIFRADOS_LLAMADA = ("telefono_cliente", "nombre_cliente", "transcripcion")
+CAMPOS_CIFRADOS_ORDEN = ("nombre_cliente",)
+
+
+def _descifrar_fila(fila: Optional[dict], campos: tuple[str, ...]) -> Optional[dict]:
+    if fila:
+        for campo in campos:
+            if campo in fila:
+                fila[campo] = cifrado_service.descifrar(fila[campo])
+    return fila
+
+
+def _cifrar_campos(campos: dict, cifrables: tuple[str, ...]) -> dict:
+    return {k: (cifrado_service.cifrar(v) if k in cifrables else v) for k, v in campos.items()}
+
 
 def crear_llamada(restaurante_id: str, telefono_cliente: str) -> dict:
     client = get_client()
@@ -209,18 +231,24 @@ def crear_llamada(restaurante_id: str, telefono_cliente: str) -> dict:
         .insert(
             {
                 "restaurante_id": restaurante_id,
-                "telefono_cliente": telefono_cliente,
+                "telefono_cliente": cifrado_service.cifrar(telefono_cliente),
+                "telefono_hash": cifrado_service.huella_telefono(telefono_cliente),
             }
         )
         .execute()
     )
-    return response.data[0]
+    return _descifrar_fila(response.data[0], CAMPOS_CIFRADOS_LLAMADA)
 
 
 def actualizar_llamada(llamada_id: str, **campos) -> Optional[dict]:
     client = get_client()
-    response = client.table("llamadas").update(campos).eq("id", llamada_id).execute()
-    return response.data[0] if response.data else None
+    response = (
+        client.table("llamadas")
+        .update(_cifrar_campos(campos, CAMPOS_CIFRADOS_LLAMADA))
+        .eq("id", llamada_id)
+        .execute()
+    )
+    return _descifrar_fila(response.data[0], CAMPOS_CIFRADOS_LLAMADA) if response.data else None
 
 
 def get_llamadas(restaurante_id: str, limite: int = 50) -> list[dict]:
@@ -233,7 +261,7 @@ def get_llamadas(restaurante_id: str, limite: int = 50) -> list[dict]:
         .limit(limite)
         .execute()
     )
-    return response.data or []
+    return [_descifrar_fila(f, CAMPOS_CIFRADOS_LLAMADA) for f in response.data or []]
 
 
 # ---------------- Ordenes ----------------
@@ -244,6 +272,7 @@ def crear_orden(
     items: list[dict],
     total: float,
     tiempo_recoleccion: str = "20 minutos",
+    nombre_cliente: Optional[str] = None,
 ) -> dict:
     client = get_client()
     response = (
@@ -255,12 +284,13 @@ def crear_orden(
                 "items": items,
                 "total": total,
                 "tiempo_recoleccion": tiempo_recoleccion,
+                "nombre_cliente": cifrado_service.cifrar(nombre_cliente),
                 "status": "nueva",
             }
         )
         .execute()
     )
-    return response.data[0]
+    return _descifrar_fila(response.data[0], CAMPOS_CIFRADOS_ORDEN)
 
 
 def actualizar_status_orden(orden_id: str, restaurante_id: str, status: str) -> Optional[dict]:
@@ -272,7 +302,7 @@ def actualizar_status_orden(orden_id: str, restaurante_id: str, status: str) -> 
         .eq("restaurante_id", restaurante_id)
         .execute()
     )
-    return response.data[0] if response.data else None
+    return _descifrar_fila(response.data[0], CAMPOS_CIFRADOS_ORDEN) if response.data else None
 
 
 def get_ordenes_activas(restaurante_id: str) -> list[dict]:
@@ -285,14 +315,100 @@ def get_ordenes_activas(restaurante_id: str) -> list[dict]:
         .order("created_at", desc=False)
         .execute()
     )
-    return response.data or []
+    return [_descifrar_fila(f, CAMPOS_CIFRADOS_ORDEN) for f in response.data or []]
 
 
 def get_orden(orden_id: str) -> Optional[dict]:
     client = get_client()
     response = client.table("ordenes").select("*").eq("id", orden_id).limit(1).execute()
     data = response.data
-    return data[0] if data else None
+    return _descifrar_fila(data[0], CAMPOS_CIFRADOS_ORDEN) if data else None
+
+
+# ---------------- Proteccion de datos (ARCO y retencion) ----------------
+
+def get_llamadas_por_telefono(restaurante_id: str, telefono: str) -> list[dict]:
+    """Todas las llamadas de un numero (buscadas por su huella), con sus
+    ordenes. Para atender solicitudes de acceso de un cliente."""
+    huella = cifrado_service.huella_telefono(telefono)
+    if not huella:
+        return []
+    client = get_client()
+    response = (
+        client.table("llamadas")
+        .select("*, ordenes(*)")
+        .eq("restaurante_id", restaurante_id)
+        .eq("telefono_hash", huella)
+        .order("created_at")
+        .execute()
+    )
+    llamadas = []
+    for fila in response.data or []:
+        _descifrar_fila(fila, CAMPOS_CIFRADOS_LLAMADA)
+        for orden in fila.get("ordenes") or []:
+            _descifrar_fila(orden, CAMPOS_CIFRADOS_ORDEN)
+        llamadas.append(fila)
+    return llamadas
+
+
+def anonimizar_cliente(restaurante_id: str, telefono: str) -> int:
+    """Cancelacion (derecho ARCO): borra telefono, nombre y transcripciones
+    de ese cliente. Las ordenes se conservan sin datos personales (platillos
+    y totales) porque el restaurante las necesita para su contabilidad.
+    Devuelve cuantas llamadas se anonimizaron."""
+    llamadas = get_llamadas_por_telefono(restaurante_id, telefono)
+    client = get_client()
+    for llamada in llamadas:
+        client.table("llamadas").update(
+            {"telefono_cliente": None, "telefono_hash": None, "nombre_cliente": None, "transcripcion": None}
+        ).eq("id", llamada["id"]).execute()
+        client.table("ordenes").update({"nombre_cliente": None}).eq("llamada_id", llamada["id"]).execute()
+    return len(llamadas)
+
+
+def purgar_transcripciones(antes_de_iso: str) -> int:
+    """Politica de retencion: la transcripcion solo sirve para revisar la
+    llamada unos dias; despues se borra. Devuelve cuantas se borraron."""
+    client = get_client()
+    response = (
+        client.table("llamadas")
+        .update({"transcripcion": None})
+        .lt("created_at", antes_de_iso)
+        .not_.is_("transcripcion", "null")
+        .execute()
+    )
+    return len(response.data or [])
+
+
+def cifrar_filas_existentes() -> dict[str, int]:
+    """Migra filas guardadas antes del cifrado (texto plano) al formato
+    cifrado. Idempotente: las ya cifradas se saltan."""
+    client = get_client()
+    conteo = {"llamadas": 0, "ordenes": 0}
+
+    llamadas = (
+        client.table("llamadas").select("id, telefono_cliente, nombre_cliente, transcripcion").execute().data or []
+    )
+    for fila in llamadas:
+        cambios = {
+            campo: cifrado_service.cifrar(fila[campo])
+            for campo in CAMPOS_CIFRADOS_LLAMADA
+            if fila.get(campo) and not cifrado_service.esta_cifrado(fila[campo])
+        }
+        if "telefono_cliente" in cambios:
+            cambios["telefono_hash"] = cifrado_service.huella_telefono(fila["telefono_cliente"])
+        if cambios:
+            client.table("llamadas").update(cambios).eq("id", fila["id"]).execute()
+            conteo["llamadas"] += 1
+
+    for fila in client.table("ordenes").select("id, nombre_cliente").execute().data or []:
+        if fila.get("nombre_cliente") and not cifrado_service.esta_cifrado(fila["nombre_cliente"]):
+            client.table("ordenes").update(
+                {"nombre_cliente": cifrado_service.cifrar(fila["nombre_cliente"])}
+            ).eq("id", fila["id"]).execute()
+            conteo["ordenes"] += 1
+
+    return conteo
 
 
 # ---------------- Reportes ----------------

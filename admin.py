@@ -11,20 +11,31 @@ se genera solo a partir del nombre. Ejemplos:
     python admin.py editar-restaurante tortas-la-abuela --twilio +522229876543
     python admin.py cambiar-password dueno@tortaslaabuela.mx
 
+Proteccion de datos:
+
+    python admin.py generar-clave              # DATA_ENCRYPTION_KEY nueva
+    python admin.py cifrar-existentes          # cifra filas previas al cifrado
+    python admin.py arco-consultar tacos-el-guero +529991234567 > datos.json
+    python admin.py arco-cancelar tacos-el-guero +529991234567
+    python admin.py purgar-transcripciones     # aplica la retencion ya
+
 El CSV del menu lleva encabezados: platillo,precio,ingredientes
 """
 import argparse
 import csv
 import getpass
+import json
 import re
 import sys
 import unicodedata
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 from database import supabase_client  # noqa: E402
+from services import cifrado_service, sitio  # noqa: E402
 from services.auth_service import hashear_password  # noqa: E402
 
 LARGO_MINIMO_PASSWORD = 10
@@ -151,6 +162,10 @@ def cmd_editar_restaurante(args) -> None:
         if otro and otro["id"] != restaurante["id"]:
             sys.exit(f"El numero {twilio} ya esta asignado a {otro['slug']}")
         campos["twilio_number"] = twilio
+    for campo in ("razon_social", "domicilio", "email_privacidad"):
+        valor = getattr(args, campo)
+        if valor is not None:
+            campos[campo] = valor.strip() or None
     if args.activo is not None:
         campos["activo"] = args.activo
 
@@ -181,6 +196,60 @@ def cmd_importar_menu(args) -> None:
     importar_menu(obtener_restaurante(args.slug), args.archivo)
 
 
+def cmd_generar_clave(args) -> None:
+    print(cifrado_service.generar_clave())
+    print(
+        "\nGuardala en .env como DATA_ENCRYPTION_KEY=... y RESPALDALA fuera del servidor.\n"
+        "Si se pierde, los datos cifrados (telefonos, nombres, transcripciones) son irrecuperables.\n"
+        "No la cambies una vez que haya datos cifrados con ella.",
+        file=sys.stderr,
+    )
+
+
+def cmd_cifrar_existentes(args) -> None:
+    conteo = supabase_client.cifrar_filas_existentes()
+    print(f"Cifradas: {conteo['llamadas']} llamada(s) y {conteo['ordenes']} orden(es).")
+
+
+def cmd_arco_consultar(args) -> None:
+    """Derecho de ACCESO: imprime en JSON todo lo que hay de ese numero en
+    ese restaurante, para entregarselo al titular."""
+    restaurante = obtener_restaurante(args.slug)
+    llamadas = supabase_client.get_llamadas_por_telefono(restaurante["id"], args.telefono)
+    if not llamadas:
+        print(f"No hay datos de {args.telefono} en {restaurante['nombre']}.", file=sys.stderr)
+        return
+    for llamada in llamadas:
+        llamada.pop("telefono_hash", None)
+    print(json.dumps({"restaurante": restaurante["nombre"], "llamadas": llamadas}, ensure_ascii=False, indent=2, default=str))
+
+
+def cmd_arco_cancelar(args) -> None:
+    """Derecho de CANCELACION: borra telefono, nombre y transcripciones. Los
+    pedidos quedan sin datos personales (el restaurante los necesita para su
+    contabilidad)."""
+    restaurante = obtener_restaurante(args.slug)
+    llamadas = supabase_client.get_llamadas_por_telefono(restaurante["id"], args.telefono)
+    if not llamadas:
+        print(f"No hay datos de {args.telefono} en {restaurante['nombre']}.")
+        return
+    if not args.si:
+        respuesta = input(
+            f"Se anonimizaran {len(llamadas)} llamada(s) de {args.telefono} en {restaurante['nombre']}. "
+            "Esto no se puede deshacer. Escribe 'si' para continuar: "
+        )
+        if respuesta.strip().lower() != "si":
+            sys.exit("Cancelado.")
+    total = supabase_client.anonimizar_cliente(restaurante["id"], args.telefono)
+    print(f"Listo: {total} llamada(s) anonimizadas. Responde al titular confirmando la cancelacion.")
+
+
+def cmd_purgar_transcripciones(args) -> None:
+    dias = args.dias if args.dias is not None else sitio.RETENCION_TRANSCRIPCIONES_DIAS
+    limite = datetime.now(timezone.utc) - timedelta(days=dias)
+    print(f"{supabase_client.purgar_transcripciones(limite.isoformat())} transcripcion(es) borradas (mas de {dias} dias).")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Administracion de restaurantes de Sianka")
     sub = parser.add_subparsers(dest="comando", required=True)
@@ -203,6 +272,9 @@ def main() -> None:
     p.add_argument("--horario")
     p.add_argument("--twilio", help='Numero de Twilio; "" para quitarlo')
     p.add_argument("--voz", help='Voz de Deepgram Aura (p. ej. aura-2-celeste-es); "" para usar la default')
+    p.add_argument("--razon-social", dest="razon_social")
+    p.add_argument("--domicilio")
+    p.add_argument("--email-privacidad", dest="email_privacidad")
     p.add_argument("--activo", dest="activo", action="store_true", default=None)
     p.add_argument("--inactivo", dest="activo", action="store_false")
     p.set_defaults(func=cmd_editar_restaurante)
@@ -221,6 +293,26 @@ def main() -> None:
     p.add_argument("slug")
     p.add_argument("archivo")
     p.set_defaults(func=cmd_importar_menu)
+
+    sub.add_parser("generar-clave", help="Genera una DATA_ENCRYPTION_KEY").set_defaults(func=cmd_generar_clave)
+    sub.add_parser(
+        "cifrar-existentes", help="Cifra datos personales guardados antes del cifrado"
+    ).set_defaults(func=cmd_cifrar_existentes)
+
+    p = sub.add_parser("arco-consultar", help="Derecho de acceso: exporta los datos de un numero (JSON)")
+    p.add_argument("slug")
+    p.add_argument("telefono")
+    p.set_defaults(func=cmd_arco_consultar)
+
+    p = sub.add_parser("arco-cancelar", help="Derecho de cancelacion: anonimiza los datos de un numero")
+    p.add_argument("slug")
+    p.add_argument("telefono")
+    p.add_argument("--si", action="store_true", help="No pedir confirmacion")
+    p.set_defaults(func=cmd_arco_cancelar)
+
+    p = sub.add_parser("purgar-transcripciones", help="Borra transcripciones mas viejas que la retencion")
+    p.add_argument("--dias", type=int, help=f"Default: {sitio.RETENCION_TRANSCRIPCIONES_DIAS}")
+    p.set_defaults(func=cmd_purgar_transcripciones)
 
     args = parser.parse_args()
     args.func(args)

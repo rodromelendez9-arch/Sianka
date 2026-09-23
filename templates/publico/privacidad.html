@@ -1,0 +1,183 @@
+{% extends "publico/base.html" %}
+
+{% block content %}
+<article>
+  <h1>Aviso de privacidad integral de Sianka</h1>
+  <p class="legal-fecha">Última actualización: {{ sitio.FECHA_TEXTOS_LEGALES }}</p>
+
+  <nav class="legal-indice" aria-label="Contenido">
+    <ol>
+      <li><a href="#responsable">Quién es el responsable</a></li>
+      <li><a href="#llamaste">Si llamaste a un restaurante</a></li>
+      <li><a href="#datos">Datos que tratamos</a></li>
+      <li><a href="#finalidades">Para qué los usamos</a></li>
+      <li><a href="#proveedores">Proveedores que nos ayudan</a></li>
+      <li><a href="#transferencias">Transferencias</a></li>
+      <li><a href="#seguridad">Cómo protegemos tus datos</a></li>
+      <li><a href="#conservacion">Cuánto tiempo los conservamos</a></li>
+      <li><a href="#derechos">Tus derechos (ARCO)</a></li>
+      <li><a href="#cookies">Cookies</a></li>
+      <li><a href="#cambios">Cambios a este aviso</a></li>
+    </ol>
+  </nav>
+
+  <section id="responsable">
+    <h2>1. Quién es el responsable</h2>
+    <p>
+      {{ sitio.SIANKA_RAZON_SOCIAL or "Sianka" }}{% if sitio.SIANKA_DOMICILIO %}, con domicilio en {{ sitio.SIANKA_DOMICILIO }}{% endif %}
+      ("Sianka"), ofrece a restaurantes un asistente de voz que contesta llamadas y toma pedidos por teléfono.
+      Sianka es responsable del tratamiento de los datos de las personas que usan su panel de administración,
+      en los términos de la legislación mexicana en materia de protección de datos personales en posesión de los particulares.
+    </p>
+    {% if sitio.SIANKA_EMAIL_PRIVACIDAD %}
+    <p>Contacto de privacidad: <a href="mailto:{{ sitio.SIANKA_EMAIL_PRIVACIDAD }}">{{ sitio.SIANKA_EMAIL_PRIVACIDAD }}</a></p>
+    {% endif %}
+  </section>
+
+  <section id="llamaste">
+    <h2>2. Si llamaste a un restaurante</h2>
+    <p>
+      Cuando llamas a un restaurante que usa Sianka, <strong>el responsable de tus datos es ese restaurante</strong>.
+      Sianka los trata únicamente por encargo del restaurante, para tomar tu pedido, y no los usa para ningún fin propio.
+      Consulta el aviso de privacidad del restaurante al que llamaste:
+    </p>
+    {% if restaurantes %}
+    <ul class="legal-lista-restaurantes">
+      {% for r in restaurantes %}
+      <li><a href="/privacidad/{{ r.slug }}">{{ r.nombre }}</a>{% if r.ciudad %} · {{ r.ciudad }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>Aún no hay restaurantes publicados.</p>
+    {% endif %}
+  </section>
+
+  <section id="datos">
+    <h2>3. Datos que tratamos</h2>
+    <h3>Usuarios del panel de los restaurantes</h3>
+    <ul>
+      <li>Nombre y correo electrónico.</li>
+      <li>Contraseña, que guardamos únicamente como una huella cifrada (hash); nadie en Sianka puede leerla.</li>
+      <li>Datos del restaurante: nombre, domicilio, horario, menú y número telefónico.</li>
+    </ul>
+    <h3>Personas que llaman a un restaurante (como encargado)</h3>
+    <ul>
+      <li>Número telefónico desde el que llamas (si no es privado).</li>
+      <li>Nombre de pila con el que haces tu pedido.</li>
+      <li>Transcripción en texto de la conversación y el detalle de tu pedido.</li>
+    </ul>
+    <p>
+      <strong>No grabamos ni guardamos el audio de la llamada</strong>: se procesa en tiempo real para convertirlo a texto.
+      No solicitamos datos personales sensibles, datos financieros ni de pago.
+    </p>
+  </section>
+
+  <section id="finalidades">
+    <h2>4. Para qué los usamos</h2>
+    <p>Finalidades necesarias para el servicio:</p>
+    <ul>
+      <li>Crear y administrar las cuentas de los restaurantes y darles acceso a su panel.</li>
+      <li>Tomar, registrar y mostrar los pedidos telefónicos al restaurante correspondiente.</li>
+      <li>Generar estadísticas agregadas para cada restaurante (por ejemplo, horas con más pedidos), sin identificar a nadie.</li>
+      <li>Mantener la seguridad del servicio y atender solicitudes de soporte.</li>
+    </ul>
+    <p>
+      <strong>No usamos tus datos para publicidad, no los vendemos y no los compartimos con fines comerciales.</strong>
+      No tenemos finalidades secundarias.
+    </p>
+  </section>
+
+  <section id="proveedores">
+    <h2>5. Proveedores que nos ayudan a prestar el servicio</h2>
+    <p>
+      Para funcionar, Sianka se apoya en los siguientes proveedores tecnológicos. Reciben solo los datos necesarios para su función
+      y los tratan por cuenta de Sianka, sin usarlos para fines propios:
+    </p>
+    <div class="legal-tabla-contenedor">
+      <table class="legal-tabla">
+        <thead><tr><th>Proveedor</th><th>Función</th><th>Ubicación</th></tr></thead>
+        <tbody>
+          {% for p in proveedores %}
+          <tr><td>{{ p.nombre }}</td><td>{{ p.funcion }}</td><td>{{ p.pais }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Configuramos el servicio de transcripción para excluir el audio de sus programas de mejora de modelos, y el servicio
+      de procesamiento del lenguaje no usa, conforme a sus términos comerciales, los datos enviados por su API para entrenar modelos.
+    </p>
+  </section>
+
+  <section id="transferencias">
+    <h2>6. Transferencias</h2>
+    <p>
+      No transferimos tus datos personales a terceros, salvo cuando lo requiera una autoridad competente conforme a la ley.
+      Los proveedores del punto anterior no son terceros que decidan sobre tus datos: solo los procesan para prestarnos su servicio.
+    </p>
+  </section>
+
+  <section id="seguridad">
+    <h2>7. Cómo protegemos tus datos</h2>
+    <ul>
+      <li>Toda la comunicación viaja cifrada (HTTPS/TLS y WSS).</li>
+      <li>El número telefónico, el nombre y las transcripciones se guardan cifrados con AES-256-GCM; la llave de cifrado no se guarda en la base de datos.</li>
+      <li>Cada restaurante solo puede ver los datos de sus propias llamadas y pedidos.</li>
+      <li>El panel muestra los números telefónicos enmascarados (solo los últimos 4 dígitos).</li>
+      <li>La base de datos bloquea el acceso con credenciales públicas; solo nuestro servidor tiene la llave de acceso.</li>
+      <li>Las contraseñas se guardan con hash (scrypt) y el acceso tiene límite de intentos.</li>
+      <li>Nuestros registros técnicos no contienen el contenido de las conversaciones.</li>
+    </ul>
+    <p>
+      Si ocurriera una vulneración de seguridad que afecte de forma significativa tus derechos, te informaremos a ti
+      y al restaurante correspondiente, sin demora, para que puedan tomar medidas.
+    </p>
+  </section>
+
+  <section id="conservacion">
+    <h2>8. Cuánto tiempo los conservamos</h2>
+    <ul>
+      <li><strong>Transcripciones:</strong> se borran automáticamente a los {{ sitio.RETENCION_TRANSCRIPCIONES_DIAS }} días.</li>
+      <li><strong>Pedidos:</strong> mientras el restaurante mantenga su cuenta, o el tiempo que exijan sus obligaciones legales y fiscales.</li>
+      <li><strong>Cuentas del panel:</strong> hasta que el restaurante cancele el servicio.</li>
+    </ul>
+    <p>Al terminar estos plazos, los datos se eliminan o se anonimizan para que no puedan asociarse contigo.</p>
+  </section>
+
+  <section id="derechos">
+    <h2>9. Tus derechos (ARCO) y cómo ejercerlos</h2>
+    <p>
+      Puedes <strong>acceder</strong> a tus datos, <strong>rectificarlos</strong>, <strong>cancelarlos</strong>
+      u <strong>oponerte</strong> a su tratamiento, así como revocar tu consentimiento o limitar su uso.
+    </p>
+    <ul>
+      <li>Si llamaste a un restaurante, escribe al contacto de privacidad que aparece en su aviso. También puedes escribirnos y haremos llegar tu solicitud al restaurante.</li>
+      <li>Si eres usuario del panel, escríbenos{% if sitio.SIANKA_EMAIL_PRIVACIDAD %} a <a href="mailto:{{ sitio.SIANKA_EMAIL_PRIVACIDAD }}">{{ sitio.SIANKA_EMAIL_PRIVACIDAD }}</a>{% endif %}.</li>
+    </ul>
+    <p>
+      Tu solicitud debe incluir tu nombre, el número telefónico o correo relacionado, qué derecho quieres ejercer
+      y, en su caso, un documento que acredite tu identidad. Responderemos en un plazo máximo de 20 días hábiles,
+      sin costo.
+    </p>
+    <p>
+      Si consideras que tu derecho a la protección de datos personales ha sido vulnerado, puedes acudir a la
+      autoridad competente en la materia.
+    </p>
+  </section>
+
+  <section id="cookies">
+    <h2>10. Cookies</h2>
+    <p>
+      Solo usamos una cookie técnica para mantener abierta la sesión en el panel de los restaurantes.
+      No usamos cookies de publicidad, de analítica ni de rastreo, y estas páginas públicas no instalan ninguna.
+    </p>
+  </section>
+
+  <section id="cambios">
+    <h2>11. Cambios a este aviso</h2>
+    <p>
+      Cualquier cambio a este aviso se publicará en esta misma página, indicando la fecha de la última actualización.
+    </p>
+  </section>
+</article>
+{% endblock %}

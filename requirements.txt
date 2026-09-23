@@ -12,3 +12,4 @@ python-multipart==0.0.32
 aiofiles==25.1.0
 tzdata==2026.3
 itsdangerous==2.2.0
+cryptography==50.0.0

@@ -91,9 +91,11 @@ pip install -r requirements.txt
    - `Project URL` → `SUPABASE_URL`
    - `service_role` key → `SUPABASE_KEY` (el backend escribe datos, necesita permisos completos)
 
-> **¿Ya tenías la base creada con el schema anterior?** Corre una vez
-> `migrations/002_multi_restaurante.sql` en el SQL Editor (agrega `slug`,
-> las variables del agente y la tabla `usuarios`).
+> **¿Ya tenías la base creada con el schema anterior?** Corre una vez, en
+> orden, `migrations/002_multi_restaurante.sql` (slug, variables del agente,
+> tabla `usuarios`) y `migrations/003_datos_personales.sql` (nombre del
+> cliente, datos legales, RLS). Después cifra las filas existentes con
+> `python admin.py cifrar-existentes`.
 
 ## 3.1 Restaurantes y usuarios
 
@@ -112,6 +114,21 @@ python admin.py editar-restaurante tacos-el-guero --twilio +52...   # asignar/ca
 El CSV del menú lleva los encabezados `platillo,precio,ingredientes`. El
 nombre, horario, saludo, tiempo de recolección e indicaciones para el agente
 los edita cada restaurante en **/configuracion**.
+
+## 3.2 Protección de datos personales
+
+- **Clave de cifrado (obligatoria):** `python admin.py generar-clave` y pon
+  el resultado en `DATA_ENCRYPTION_KEY`. Sin ella el servidor no arranca.
+  **Respáldala fuera del servidor:** si se pierde, los teléfonos, nombres y
+  transcripciones cifrados son irrecuperables.
+- Teléfono, nombre del cliente y transcripción se guardan cifrados
+  (AES-256-GCM); el panel muestra el número enmascarado (`•••• 4567`).
+- Las transcripciones se borran solas a los `RETENCION_TRANSCRIPCIONES_DIAS`.
+- Derechos ARCO: `python admin.py arco-consultar <slug> <telefono>` (acceso)
+  y `python admin.py arco-cancelar <slug> <telefono>` (cancelación).
+- Páginas públicas: `/privacidad`, `/privacidad/<slug>` y `/terminos`. Llena
+  `SIANKA_RAZON_SOCIAL`, `SIANKA_DOMICILIO` y `SIANKA_EMAIL_PRIVACIDAD`; cada
+  restaurante llena los suyos en **/configuracion**.
 
 ## 4. Configurar variables de entorno
 

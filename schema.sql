@@ -25,6 +25,11 @@ create table if not exists restaurantes (
     tiempo_recoleccion_min integer default 20,
     instrucciones_extra text,
     voz_tts text,
+    -- Datos del restaurante como "responsable" en su aviso de privacidad
+    -- (se publican en /privacidad/<slug>)
+    razon_social text,
+    domicilio text,
+    email_privacidad text,
     activo boolean default true,
     created_at timestamptz default now()
 );
@@ -69,7 +74,12 @@ create table if not exists menus (
 create table if not exists llamadas (
     id uuid primary key default gen_random_uuid(),
     restaurante_id uuid references restaurantes(id),
+    -- telefono_cliente, nombre_cliente y transcripcion se guardan CIFRADOS
+    -- por la app (services/cifrado_service.py). telefono_hash es una huella
+    -- HMAC del numero para encontrar sus llamadas (derechos ARCO).
     telefono_cliente text,
+    telefono_hash text,
+    nombre_cliente text,
     duracion_segundos integer,
     transcripcion text,
     resultado text check (resultado in ('orden', 'sin_orden')),
@@ -86,6 +96,7 @@ create table if not exists ordenes (
     items jsonb not null,
     total decimal(10,2),
     tiempo_recoleccion text,
+    nombre_cliente text,  -- cifrado por la app
     status text default 'nueva'
         check (status in ('nueva', 'confirmada', 'preparando', 'lista', 'entregada')),
     created_at timestamptz default now(),
@@ -97,6 +108,15 @@ create index if not exists idx_ordenes_restaurante on ordenes(restaurante_id);
 create index if not exists idx_ordenes_status on ordenes(status);
 create index if not exists idx_llamadas_restaurante on llamadas(restaurante_id);
 create index if not exists idx_menus_restaurante on menus(restaurante_id);
+create index if not exists idx_llamadas_telefono_hash on llamadas(restaurante_id, telefono_hash);
+
+-- Row Level Security en todas las tablas, sin politicas: el backend usa la
+-- service_role key (que salta RLS) y la anon key -- publica por diseno en
+-- Supabase -- no puede leer ni escribir nada.
+alter table restaurantes enable row level security;
+alter table menus enable row level security;
+alter table llamadas enable row level security;
+alter table ordenes enable row level security;
 
 -- ------------------------------------------------------------
 -- Trigger: mantener updated_at al dia en ordenes

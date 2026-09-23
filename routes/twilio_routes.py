@@ -14,6 +14,7 @@ from twilio.twiml.voice_response import Connect, Stream, VoiceResponse
 
 from database import supabase_client
 from prompts.agent_prompt import tiempo_recoleccion
+from services.cifrado_service import enmascarar_telefono
 from services.claude_service import ClaudeConversationService
 from services.deepgram_service import DeepgramStreamingService, sintetizar_audio_mulaw
 from services.rate_limit_service import limitar
@@ -162,6 +163,9 @@ async def incoming_call(request: Request) -> Response:
 # es un "aja" suelto o ruido de linea), asi que se corta el audio en curso.
 PALABRAS_PARA_INTERRUMPIR = 2
 
+# Tope al nombre que dicta el cliente: es un nombre de pila, no un campo libre.
+LARGO_MAXIMO_NOMBRE = 60
+
 # Al colgar, cuanto se espera a que termine el turno en curso (p. ej. el
 # cliente dijo "si, esta bien" y colgo antes de que Claude registrara la orden).
 ESPERA_ULTIMO_TURNO_SEGUNDOS = 15
@@ -194,6 +198,7 @@ async def media_stream(websocket: WebSocket) -> None:
     inicio_llamada = time.time()
     transcripcion_completa: list[str] = []
     orden_tomada = False
+    nombre_cliente: Optional[str] = None
     llamada_terminada = False
 
     restaurante: dict = {}
@@ -279,7 +284,7 @@ async def media_stream(websocket: WebSocket) -> None:
             await interrumpir_agente()
 
     async def procesar_turno(texto: str) -> None:
-        nonlocal orden_tomada
+        nonlocal orden_tomada, nombre_cliente
 
         transcripcion_completa.append(f"Cliente: {texto}")
 
@@ -293,6 +298,7 @@ async def media_stream(websocket: WebSocket) -> None:
             if orden and restaurante_id:
                 items_validados, total_validado = _validar_y_recalcular_orden(orden["items"], menu)
                 recoleccion = orden.get("tiempo_recoleccion") or tiempo_recoleccion(restaurante)
+                nombre = " ".join(str(orden.get("nombre_cliente") or "").split())[:LARGO_MAXIMO_NOMBRE]
 
                 if not items_validados:
                     logger.warning(
@@ -301,12 +307,14 @@ async def media_stream(websocket: WebSocket) -> None:
                     )
                 else:
                     orden_tomada = True
+                    nombre_cliente = nombre or None
                     nueva_orden = supabase_client.crear_orden(
                         restaurante_id=restaurante_id,
                         llamada_id=llamada_id,
                         items=items_validados,
                         total=total_validado,
                         tiempo_recoleccion=recoleccion,
+                        nombre_cliente=nombre_cliente,
                     )
 
                     await manager.broadcast(
@@ -317,6 +325,7 @@ async def media_stream(websocket: WebSocket) -> None:
                             "items": items_validados,
                             "total": total_validado,
                             "recoleccion": recoleccion,
+                            "nombre_cliente": nombre_cliente,
                             "status": "nueva",
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         }
@@ -326,9 +335,8 @@ async def media_stream(websocket: WebSocket) -> None:
                 await hablar(resultado["texto"])
         except Exception:
             logger.exception(
-                "Error procesando turno de conversacion (llamada_id=%s, texto=%r)",
+                "Error procesando turno de conversacion (llamada_id=%s)",
                 llamada_id,
-                texto,
             )
             try:
                 await hablar("Disculpa, ¿puedes repetir eso?")
@@ -404,7 +412,7 @@ async def media_stream(websocket: WebSocket) -> None:
                     restaurante_id,
                     {
                         "evento": "llamada_activa",
-                        "telefono_cliente": telefono_cliente,
+                        "telefono_cliente": enmascarar_telefono(telefono_cliente),
                         "llamada_id": llamada_id,
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
@@ -453,6 +461,7 @@ async def media_stream(websocket: WebSocket) -> None:
                 duracion_segundos=duracion,
                 transcripcion="\n".join(transcripcion_completa),
                 resultado="orden" if orden_tomada else "sin_orden",
+                nombre_cliente=nombre_cliente,
             )
 
         await manager.broadcast(

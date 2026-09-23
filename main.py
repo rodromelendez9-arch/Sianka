@@ -1,5 +1,9 @@
+import asyncio
+import logging
 import os
 import secrets
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -12,9 +16,41 @@ from starlette.middleware.sessions import SessionMiddleware
 # con os.getenv() al importarse (p. ej. TWILIO_AUTH_TOKEN en twilio_routes).
 load_dotenv()
 
-from routes import auth_routes, dashboard_routes, order_routes, twilio_routes  # noqa: E402
+from database import supabase_client  # noqa: E402
+from routes import auth_routes, dashboard_routes, order_routes, publico_routes, twilio_routes  # noqa: E402
+from services import cifrado_service, sitio  # noqa: E402
 
-app = FastAPI(title="Sianka - Voice Agent")
+logger = logging.getLogger(__name__)
+
+INTERVALO_PURGA_SEGUNDOS = 24 * 60 * 60
+
+
+async def _purgar_transcripciones_periodicamente() -> None:
+    """Politica de retencion: una vez al dia borra las transcripciones mas
+    viejas que RETENCION_TRANSCRIPCIONES_DIAS. Es idempotente, asi que no
+    importa si corren varios procesos a la vez."""
+    while True:
+        try:
+            limite = datetime.now(timezone.utc) - timedelta(days=sitio.RETENCION_TRANSCRIPCIONES_DIAS)
+            borradas = await asyncio.to_thread(supabase_client.purgar_transcripciones, limite.isoformat())
+            if borradas:
+                logger.info("Retencion: %s transcripciones borradas", borradas)
+        except Exception:
+            logger.exception("Fallo la purga de transcripciones; se reintenta en 24 h")
+        await asyncio.sleep(INTERVALO_PURGA_SEGUNDOS)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Sin clave de cifrado el servidor NO arranca: aceptaria llamadas y
+    # fallaria al guardar datos personales (o, peor, los guardaria en claro).
+    cifrado_service.verificar_configuracion()
+    tarea_purga = asyncio.create_task(_purgar_transcripciones_periodicamente())
+    yield
+    tarea_purga.cancel()
+
+
+app = FastAPI(title="Sianka - Voice Agent", lifespan=lifespan)
 
 
 @app.exception_handler(HTTPException)
@@ -24,6 +60,7 @@ async def redirigir_a_login(request: Request, exc: HTTPException):
     if exc.status_code == 401 and not request.url.path.startswith("/api/"):
         return RedirectResponse(url="/login", status_code=303)
     return await http_exception_handler(request, exc)
+
 
 HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "true").lower() != "false"
 
@@ -54,6 +91,11 @@ _CSP = (
     "frame-ancestors 'none'"
 )
 
+# Paginas que se pueden guardar en cache: las publicas y los archivos
+# estaticos. Todo lo demas (dashboard, API) contiene datos personales y no
+# debe quedarse en la cache del navegador ni de proxies intermedios.
+_RUTAS_CACHEABLES = ("/static/", "/privacidad", "/terminos", "/robots.txt", "/sitemap.xml")
+
 
 @app.middleware("http")
 async def cabeceras_de_seguridad(request: Request, call_next):
@@ -62,6 +104,9 @@ async def cabeceras_de_seguridad(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+    if not request.url.path.startswith(_RUTAS_CACHEABLES):
+        response.headers["Cache-Control"] = "no-store"
     if HTTPS_ONLY:
         response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
     return response
@@ -74,14 +119,8 @@ app.include_router(dashboard_routes.router)
 app.include_router(dashboard_routes.router_ws)
 app.include_router(order_routes.router)
 app.include_router(twilio_routes.router)
-
-
-@app.get("/robots.txt", response_class=PlainTextResponse)
-async def robots_txt() -> str:
-    """Este dashboard es una herramienta privada de operacion, no un sitio
-    publico -- no debe aparecer en buscadores. Ver tambien el meta robots
-    noindex en templates/base.html (defensa en dos capas)."""
-    return "User-agent: *\nDisallow: /\n"
+# Avisos de privacidad, terminos, robots.txt y sitemap.xml
+app.include_router(publico_routes.router)
 
 
 @app.get("/health", response_class=PlainTextResponse)

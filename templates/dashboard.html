@@ -53,6 +53,7 @@
         <span class="orden-numero">Orden #{{ orden.id[:8] }}</span>
         <span class="orden-tiempo-transcurrido" data-created="{{ orden.created_at }}">hace un momento</span>
       </div>
+      {% if orden.nombre_cliente %}<div class="orden-cliente">{{ orden.nombre_cliente }}</div>{% endif %}
       <span class="status-pill status-{{ orden.status }}">{{ estado_labels[orden.status] }}</span>
       <div class="orden-items">
         {% for item in orden['items'] %}

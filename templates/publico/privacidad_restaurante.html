@@ -1,0 +1,112 @@
+{% extends "publico/base.html" %}
+
+{% set responsable = restaurante.razon_social or restaurante.nombre %}
+{% set contacto = restaurante.email_privacidad or sitio.SIANKA_EMAIL_PRIVACIDAD %}
+
+{% block aviso_pendiente %}
+{% if not (restaurante.razon_social and restaurante.domicilio and restaurante.email_privacidad) %}
+<div class="legal-pendiente" role="alert">
+  Este restaurante aún no completa sus datos de identidad y contacto.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<article>
+  <h1>Aviso de privacidad de {{ restaurante.nombre }}</h1>
+  <p class="legal-fecha">Para pedidos por teléfono · Última actualización: {{ sitio.FECHA_TEXTOS_LEGALES }}</p>
+
+  <section>
+    <h2>1. Responsable</h2>
+    <p>
+      <strong>{{ responsable }}</strong>{% if restaurante.razon_social and restaurante.razon_social != restaurante.nombre %}
+      (&laquo;{{ restaurante.nombre }}&raquo;){% endif %}{% if restaurante.domicilio %}, con domicilio en {{ restaurante.domicilio }}{% endif %},
+      es responsable de los datos personales que proporcionas al llamar para hacer un pedido.
+    </p>
+    {% if contacto %}
+    <p>Contacto de privacidad: <a href="mailto:{{ contacto }}">{{ contacto }}</a></p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>2. Datos que recabamos</h2>
+    <ul>
+      <li>El número telefónico desde el que llamas (si no es privado).</li>
+      <li>El nombre de pila con el que haces tu pedido.</li>
+      <li>La transcripción en texto de la llamada y el detalle de tu pedido.</li>
+    </ul>
+    <p>
+      Tu llamada la atiende un asistente virtual. <strong>El audio no se graba ni se guarda</strong>: se convierte a texto en tiempo real.
+      No pedimos datos sensibles, de pago ni tu domicilio.
+    </p>
+  </section>
+
+  <section>
+    <h2>3. Para qué los usamos</h2>
+    <ul>
+      <li>Tomar, preparar y entregarte tu pedido.</li>
+      <li>Responder las dudas que hagas durante la llamada (menú, precios, horario).</li>
+      <li>Estadísticas internas agregadas (por ejemplo, las horas con más pedidos), sin identificarte.</li>
+    </ul>
+    <p><strong>No usamos tus datos para publicidad ni los vendemos.</strong></p>
+  </section>
+
+  <section>
+    <h2>4. Tu consentimiento</h2>
+    <p>
+      Al inicio de cada llamada el asistente te informa que tus datos se usan solo para tu pedido y dónde consultar este aviso.
+      Si continúas la llamada, consientes ese uso. Si no estás de acuerdo, puedes colgar en cualquier momento y
+      después solicitar que se eliminen tus datos (ver punto 7).
+    </p>
+  </section>
+
+  <section>
+    <h2>5. Quién más trata tus datos</h2>
+    <p>
+      {{ restaurante.nombre }} usa <a href="/privacidad">Sianka</a> para contestar las llamadas y registrar los pedidos.
+      Sianka y sus proveedores tecnológicos tratan tus datos únicamente por encargo del restaurante y para ese fin:
+    </p>
+    <div class="legal-tabla-contenedor">
+      <table class="legal-tabla">
+        <thead><tr><th>Proveedor</th><th>Función</th><th>Ubicación</th></tr></thead>
+        <tbody>
+          <tr><td>Sianka</td><td>Plataforma del asistente de voz y del panel de pedidos</td><td>México</td></tr>
+          {% for p in proveedores %}
+          <tr><td>{{ p.nombre }}</td><td>{{ p.funcion }}</td><td>{{ p.pais }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p>No transferimos tus datos a terceros, salvo cuando lo requiera una autoridad competente conforme a la ley.</p>
+  </section>
+
+  <section>
+    <h2>6. Seguridad y conservación</h2>
+    <p>
+      Tu número, tu nombre y la transcripción se guardan cifrados, y el personal del restaurante solo ve los últimos 4
+      dígitos de tu número. La transcripción se borra automáticamente a los {{ sitio.RETENCION_TRANSCRIPCIONES_DIAS }} días.
+      Los datos del pedido se conservan el tiempo que exijan las obligaciones legales y fiscales del restaurante.
+      Consulta el detalle de las medidas en el <a href="/privacidad#seguridad">aviso de Sianka</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2>7. Tus derechos (ARCO)</h2>
+    <p>
+      Puedes acceder a tus datos, rectificarlos, cancelarlos u oponerte a su uso, así como revocar tu consentimiento.
+      Escribe{% if contacto %} a <a href="mailto:{{ contacto }}">{{ contacto }}</a>{% endif %} indicando tu nombre,
+      el número desde el que llamaste, el derecho que quieres ejercer y, en su caso, un documento que acredite tu identidad.
+      Te responderemos en un plazo máximo de 20 días hábiles, sin costo.
+    </p>
+    <p>
+      Si consideras que tu derecho a la protección de datos personales ha sido vulnerado, puedes acudir a la
+      autoridad competente en la materia.
+    </p>
+  </section>
+
+  <section>
+    <h2>8. Cambios a este aviso</h2>
+    <p>Cualquier cambio se publicará en esta misma página, con la fecha de la última actualización.</p>
+  </section>
+</article>
+{% endblock %}

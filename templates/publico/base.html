@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ titulo }} · Sianka</title>
+  <meta name="description" content="{{ descripcion }}">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="{{ canonical }}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sianka">
+  <meta property="og:locale" content="es_MX">
+  <meta property="og:title" content="{{ titulo }} · Sianka">
+  <meta property="og:description" content="{{ descripcion }}">
+  <meta property="og:url" content="{{ canonical }}">
+  <meta name="twitter:card" content="summary">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="publico">
+  <header class="publico-header">
+    <div class="publico-header-inner">
+      <span class="logo">
+        <span class="logo-punto" aria-hidden="true"></span>
+        <span class="logo-nombre">Sianka</span>
+      </span>
+    </div>
+  </header>
+
+  <main class="legal" id="contenido">
+    {# Cada pagina revisa los datos de SU responsable: Sianka aqui, el
+       restaurante en privacidad_restaurante.html (que sobrescribe el bloque). #}
+    {% block aviso_pendiente %}
+    {% if not sitio.datos_legales_completos() %}
+    <div class="legal-pendiente" role="alert">
+      Los datos de identidad y contacto del responsable están pendientes de configurar.
+    </div>
+    {% endif %}
+    {% endblock %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="publico-footer">
+    <nav aria-label="Legal">
+      <a href="/privacidad">Aviso de privacidad</a>
+      <a href="/terminos">Terminos de servicio</a>
+    </nav>
+    <p>© {{ anio }} Sianka</p>
+  </footer>
+</body>
+</html>
