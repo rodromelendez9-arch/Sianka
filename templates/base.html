@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}Voice Agent{% endblock %} · {{ restaurante.nombre if restaurante else "Voice Agent" }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,12 +22,14 @@
         <a href="/" class="{{ 'activo' if active_page == 'dashboard' else '' }}">Ordenes</a>
         <a href="/llamadas" class="{{ 'activo' if active_page == 'llamadas' else '' }}">Llamadas</a>
         <a href="/menu" class="{{ 'activo' if active_page == 'menu' else '' }}">Menu</a>
+        <a href="/reportes" class="{{ 'activo' if active_page == 'reportes' else '' }}">Reportes</a>
       </nav>
       <div class="header-spacer"></div>
       <span class="badge-escuchando">
         <span class="punto-animado"></span>
         Escuchando llamadas
       </span>
+      <a href="/logout" class="header-logout">Cerrar sesion</a>
     </div>
   </header>
 

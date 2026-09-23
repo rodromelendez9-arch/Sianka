@@ -22,6 +22,7 @@ class PlatilloMenu(BaseModel):
     precio: float
     ingredientes: Optional[str] = None
     activo: bool = True
+    disponible: bool = True
 
 
 class PlatilloCreate(BaseModel):
@@ -35,3 +36,8 @@ class PlatilloUpdate(BaseModel):
     precio: Optional[float] = None
     ingredientes: Optional[str] = None
     activo: Optional[bool] = None
+    disponible: Optional[bool] = None
+
+
+class DisponibilidadUpdate(BaseModel):
+    disponible: bool

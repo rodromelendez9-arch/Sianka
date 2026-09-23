@@ -173,7 +173,11 @@
       const linea = document.createElement("div");
       linea.className = "orden-item";
       const nombre = document.createElement("span");
-      nombre.innerHTML = `<span class="cantidad">${item.cantidad}x</span>${item.platillo}`;
+      const cantidadEl = document.createElement("span");
+      cantidadEl.className = "cantidad";
+      cantidadEl.textContent = `${item.cantidad}x`;
+      nombre.appendChild(cantidadEl);
+      nombre.appendChild(document.createTextNode(item.platillo || ""));
       const precio = document.createElement("span");
       precio.textContent = `$${Number(item.subtotal).toFixed(2)}`;
       linea.appendChild(nombre);

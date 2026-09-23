@@ -1,13 +1,21 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from database import supabase_client
 from models.order import OrdenStatusUpdate
-from models.restaurant import PlatilloCreate, PlatilloUpdate
+from models.restaurant import DisponibilidadUpdate, PlatilloCreate, PlatilloUpdate
+from services.auth_service import require_login
+from services.prediccion_service import calcular_prediccion_demanda
+from services.rate_limit_service import limitar
+from services.reportes_service import calcular_reporte
 from services.websocket_manager import manager
 
-router = APIRouter(prefix="/api")
+router = APIRouter(
+    prefix="/api",
+    dependencies=[Depends(require_login), Depends(limitar(120, 60))],
+)
 
 
 def _restaurante_activo_id() -> str:
@@ -47,9 +55,45 @@ async def resumen_del_dia() -> dict:
     return supabase_client.get_resumen_del_dia(restaurante_id)
 
 
+DIAS_POR_PERIODO = {"semana": 7, "mes": 30, "todo": 3650}
+
+
+@router.get("/reportes")
+async def reportes(periodo: Literal["semana", "mes", "todo"] = "semana") -> dict:
+    restaurante_id = _restaurante_activo_id()
+    desde = datetime.now(timezone.utc) - timedelta(days=DIAS_POR_PERIODO[periodo])
+    desde_iso = desde.isoformat()
+
+    ordenes = supabase_client.get_ordenes_periodo(restaurante_id, desde_iso)
+    llamadas = supabase_client.get_llamadas_periodo(restaurante_id, desde_iso)
+
+    reporte = calcular_reporte(ordenes, llamadas)
+    reporte["periodo"] = periodo
+    return reporte
+
+
+SEMANAS_HISTORIAL_PREDICCION = 8
+
+
+@router.get("/prediccion")
+async def prediccion_demanda() -> dict:
+    restaurante_id = _restaurante_activo_id()
+    desde = datetime.now(timezone.utc) - timedelta(weeks=SEMANAS_HISTORIAL_PREDICCION)
+    desde_iso = desde.isoformat()
+
+    ordenes = supabase_client.get_ordenes_periodo(restaurante_id, desde_iso)
+    llamadas = supabase_client.get_llamadas_periodo(restaurante_id, desde_iso)
+
+    return {
+        "pronostico": calcular_prediccion_demanda(ordenes, llamadas),
+        "semanas_historial": SEMANAS_HISTORIAL_PREDICCION,
+    }
+
+
 @router.get("/llamadas")
 async def listar_llamadas(limite: int = 50) -> list[dict]:
     restaurante_id = _restaurante_activo_id()
+    limite = max(1, min(limite, 200))
     return supabase_client.get_llamadas(restaurante_id, limite)
 
 
@@ -86,3 +130,11 @@ async def actualizar_platillo(menu_id: str, body: PlatilloUpdate) -> dict:
 async def eliminar_platillo(menu_id: str) -> dict:
     supabase_client.eliminar_platillo(menu_id)
     return {"eliminado": True}
+
+
+@router.post("/menu/{menu_id}/disponibilidad")
+async def actualizar_disponibilidad(menu_id: str, body: DisponibilidadUpdate) -> dict:
+    platillo = supabase_client.actualizar_disponibilidad(menu_id, body.disponible)
+    if not platillo:
+        raise HTTPException(status_code=404, detail="Platillo no encontrado")
+    return platillo

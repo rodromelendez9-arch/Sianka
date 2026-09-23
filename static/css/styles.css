@@ -155,6 +155,18 @@ button {
   animation: pulso-verde 1.6s ease-in-out infinite;
 }
 
+.header-logout {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-3);
+  margin-left: 1.25rem;
+  transition: color 0.15s ease;
+}
+
+.header-logout:hover {
+  color: var(--primary);
+}
+
 @keyframes pulso-verde {
   0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(39,174,96,0.4); }
   50% { opacity: 0.7; transform: scale(1.15); box-shadow: 0 0 0 4px rgba(39,174,96,0); }
@@ -663,11 +675,23 @@ button {
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem 1.25rem;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.menu-item-card.agotado {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
 }
 
 .menu-item-info .platillo-nombre {
   font-weight: 600;
   font-size: 0.95rem;
+}
+
+.menu-item-card.agotado .platillo-nombre {
+  color: var(--text-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-3);
 }
 
 .menu-item-info .platillo-ingredientes {
@@ -676,11 +700,54 @@ button {
   margin-top: 0.15rem;
 }
 
+.menu-item-card.agotado .platillo-ingredientes {
+  color: var(--text-3);
+}
+
 .menu-item-precio {
   font-weight: 700;
   color: var(--primary);
   font-size: 1rem;
   white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.menu-item-card.agotado .menu-item-precio {
+  color: var(--text-3);
+}
+
+.disponibilidad-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 0.5px solid transparent;
+  background: var(--success-soft, #F0FDF4);
+  color: var(--success);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.disponibilidad-toggle:active {
+  transform: scale(0.97);
+}
+
+.disponibilidad-toggle .disponibilidad-punto {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.disponibilidad-toggle.agotado {
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-color: var(--border-strong);
 }
 
 .form-grid {
@@ -747,4 +814,233 @@ button {
   .pipeline-etapa {
     flex: 1 1 30%;
   }
+}
+
+/* ---------------- Reportes ---------------- */
+
+.reportes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.periodo-selector {
+  display: inline-flex;
+  background: var(--surface-2);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem;
+  gap: 0.15rem;
+}
+
+.periodo-opcion {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-2);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.periodo-opcion:hover {
+  color: var(--text-1);
+}
+
+.periodo-opcion.activa {
+  background: var(--primary);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.reportes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 980px) {
+  .reportes-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .reportes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reporte-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.reporte-etiqueta {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.reporte-valor {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-1);
+  line-height: 1.25;
+}
+
+.reporte-valor-vacio {
+  color: var(--text-3);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.reporte-detalle {
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+
+.reporte-resumen-total {
+  display: flex;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.reporte-resumen-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.reporte-resumen-item .valor {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.reporte-resumen-item .etiqueta {
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+/* ---------------- Prediccion de demanda ---------------- */
+
+.prediccion-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.prediccion-nota {
+  font-size: 0.82rem;
+  color: var(--text-3);
+}
+
+.prediccion-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.85rem;
+}
+
+@media (max-width: 980px) {
+  .prediccion-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .prediccion-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.prediccion-card {
+  background: var(--surface-1);
+  border: 0.5px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.prediccion-card.confianza-alta {
+  border-left-color: var(--success);
+}
+
+.prediccion-card.confianza-media {
+  border-left-color: var(--warning);
+}
+
+.prediccion-card.confianza-baja,
+.prediccion-card.confianza-sin_datos {
+  border-left-color: var(--border-strong);
+}
+
+.prediccion-dia {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.3rem;
+}
+
+.prediccion-ordenes {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--text-1);
+  line-height: 1.1;
+}
+
+.prediccion-ordenes-label {
+  font-size: 0.76rem;
+  color: var(--text-3);
+  margin-bottom: 0.6rem;
+}
+
+.prediccion-detalle {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  margin-bottom: 0.7rem;
+}
+
+.prediccion-confianza-pill {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.confianza-pill-alta {
+  background: #F0FDF4;
+  color: var(--success);
+}
+
+.confianza-pill-media {
+  background: #FFF7ED;
+  color: var(--warning);
+}
+
+.confianza-pill-baja {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.confianza-pill-sin_datos {
+  background: var(--surface-2);
+  color: var(--text-3);
 }

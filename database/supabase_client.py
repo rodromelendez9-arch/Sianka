@@ -37,6 +37,13 @@ def get_restaurante_activo() -> Optional[dict]:
     return data[0] if data else None
 
 
+def get_restaurante(restaurante_id: str) -> Optional[dict]:
+    client = get_client()
+    response = client.table("restaurantes").select("*").eq("id", restaurante_id).limit(1).execute()
+    data = response.data
+    return data[0] if data else None
+
+
 def get_restaurante_by_twilio_number(twilio_number: str) -> Optional[dict]:
     client = get_client()
     response = (
@@ -54,12 +61,28 @@ def get_restaurante_by_twilio_number(twilio_number: str) -> Optional[dict]:
 # ---------------- Menu ----------------
 
 def get_menu(restaurante_id: str) -> list[dict]:
+    """Todos los platillos activos, disponibles o no -- para la vista de administrador."""
     client = get_client()
     response = (
         client.table("menus")
         .select("*")
         .eq("restaurante_id", restaurante_id)
         .eq("activo", True)
+        .order("platillo")
+        .execute()
+    )
+    return response.data or []
+
+
+def get_menu_disponible(restaurante_id: str) -> list[dict]:
+    """Solo platillos con existencias -- lo que el agente de voz le puede ofrecer al cliente."""
+    client = get_client()
+    response = (
+        client.table("menus")
+        .select("*")
+        .eq("restaurante_id", restaurante_id)
+        .eq("activo", True)
+        .eq("disponible", True)
         .order("platillo")
         .execute()
     )
@@ -77,6 +100,7 @@ def crear_platillo(restaurante_id: str, platillo: str, precio: float, ingredient
                 "precio": precio,
                 "ingredientes": ingredientes,
                 "activo": True,
+                "disponible": True,
             }
         )
         .execute()
@@ -87,6 +111,17 @@ def crear_platillo(restaurante_id: str, platillo: str, precio: float, ingredient
 def actualizar_platillo(menu_id: str, **campos) -> Optional[dict]:
     client = get_client()
     response = client.table("menus").update(campos).eq("id", menu_id).execute()
+    return response.data[0] if response.data else None
+
+
+def actualizar_disponibilidad(menu_id: str, disponible: bool) -> Optional[dict]:
+    client = get_client()
+    response = (
+        client.table("menus")
+        .update({"disponible": disponible})
+        .eq("id", menu_id)
+        .execute()
+    )
     return response.data[0] if response.data else None
 
 
@@ -187,6 +222,32 @@ def get_orden(orden_id: str) -> Optional[dict]:
     response = client.table("ordenes").select("*").eq("id", orden_id).limit(1).execute()
     data = response.data
     return data[0] if data else None
+
+
+# ---------------- Reportes ----------------
+
+def get_ordenes_periodo(restaurante_id: str, desde_iso: str) -> list[dict]:
+    client = get_client()
+    response = (
+        client.table("ordenes")
+        .select("items, total, created_at")
+        .eq("restaurante_id", restaurante_id)
+        .gte("created_at", desde_iso)
+        .execute()
+    )
+    return response.data or []
+
+
+def get_llamadas_periodo(restaurante_id: str, desde_iso: str) -> list[dict]:
+    client = get_client()
+    response = (
+        client.table("llamadas")
+        .select("created_at, duracion_segundos, resultado")
+        .eq("restaurante_id", restaurante_id)
+        .gte("created_at", desde_iso)
+        .execute()
+    )
+    return response.data or []
 
 
 # ---------------- Resumen del dia ----------------

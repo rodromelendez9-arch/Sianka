@@ -28,8 +28,13 @@ create table if not exists menus (
     platillo text not null,
     precio decimal(10,2) not null,
     ingredientes text,
-    activo boolean default true
+    activo boolean default true,
+    disponible boolean default true
 );
+
+-- Si tu tabla `menus` ya existia antes de agregar `disponible` (CREATE TABLE
+-- IF NOT EXISTS no la agrega retroactivamente), corre esto una vez:
+-- alter table menus add column if not exists disponible boolean default true;
 
 -- ------------------------------------------------------------
 -- Tabla: llamadas
