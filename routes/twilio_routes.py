@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -152,17 +153,29 @@ async def incoming_call(request: Request) -> Response:
     return Response(content=str(response), media_type="application/xml")
 
 
-async def _enviar_audio_a_twilio(websocket: WebSocket, stream_sid: Optional[str], audio: bytes) -> None:
+# Con 2+ palabras el cliente claramente esta hablando encima del agente (y no
+# es un "aja" suelto o ruido de linea), asi que se corta el audio en curso.
+PALABRAS_PARA_INTERRUMPIR = 2
+
+# Al colgar, cuanto se espera a que termine el turno en curso (p. ej. el
+# cliente dijo "si, esta bien" y colgo antes de que Claude registrara la orden).
+ESPERA_ULTIMO_TURNO_SEGUNDOS = 15
+
+
+async def _enviar_audio_a_twilio(websocket: WebSocket, stream_sid: Optional[str], audio: bytes) -> bool:
+    """Envia el audio seguido de un `mark`: Twilio devuelve ese mark cuando
+    termina de reproducirlo, y asi se sabe si el agente sigue hablando."""
     if not stream_sid or not audio:
-        return
+        return False
 
     payload = base64.b64encode(audio).decode("utf-8")
-    mensaje = {
-        "event": "media",
-        "streamSid": stream_sid,
-        "media": {"payload": payload},
-    }
-    await websocket.send_text(json.dumps(mensaje))
+    await websocket.send_text(
+        json.dumps({"event": "media", "streamSid": stream_sid, "media": {"payload": payload}})
+    )
+    await websocket.send_text(
+        json.dumps({"event": "mark", "streamSid": stream_sid, "mark": {"name": "fin_respuesta"}})
+    )
+    return True
 
 
 @router.websocket("/media-stream")
@@ -176,47 +189,98 @@ async def media_stream(websocket: WebSocket) -> None:
     inicio_llamada = time.time()
     transcripcion_completa: list[str] = []
     orden_tomada = False
+    llamada_terminada = False
 
     claude_service: Optional[ClaudeConversationService] = None
     deepgram_service: Optional[DeepgramStreamingService] = None
     menu: list[dict] = []
 
-    async def on_transcript(texto: str, is_final: bool) -> None:
-        nonlocal orden_tomada
+    # Manejo de turnos: los segmentos is_final se juntan hasta que Deepgram
+    # indica que el cliente termino de hablar (speech_final / UtteranceEnd);
+    # entonces el turno completo entra a la cola. Un solo worker consume la
+    # cola, asi nunca hay dos llamadas a Claude en paralelo sobre el mismo
+    # historial ni respuestas a frases a medias.
+    segmentos_turno: list[str] = []
+    cola_turnos: asyncio.Queue[Optional[str]] = asyncio.Queue()
+    worker_turnos: Optional[asyncio.Task] = None
+    # Audios enviados a Twilio cuyo mark aun no regresa (= el agente habla).
+    marks_pendientes = 0
 
+    async def hablar(texto: str) -> None:
+        nonlocal marks_pendientes
+
+        transcripcion_completa.append(f"Agente: {texto}")
         await manager.broadcast(
             {
                 "evento": "transcripcion",
                 "texto": texto,
-                "es_final": is_final,
-                "hablante": "cliente",
+                "es_final": True,
+                "hablante": "agente",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )
-
-        if not is_final or not texto.strip() or claude_service is None:
+        if llamada_terminada:
             return
+
+        audio = await sintetizar_audio_mulaw(texto)
+        if await _enviar_audio_a_twilio(websocket, stream_sid, audio):
+            marks_pendientes += 1
+
+    async def interrumpir_agente() -> None:
+        """Barge-in: vacia el buffer de audio de Twilio para que el agente se
+        calle en cuanto el cliente le habla encima."""
+        nonlocal marks_pendientes
+        if marks_pendientes <= 0 or not stream_sid or llamada_terminada:
+            return
+        marks_pendientes = 0
+        await websocket.send_text(json.dumps({"event": "clear", "streamSid": stream_sid}))
+
+    def cerrar_turno() -> bool:
+        """Pasa lo acumulado del cliente a la cola. Sincrono a proposito: los
+        callbacks de Deepgram corren como tareas separadas y asi el estado de
+        `segmentos_turno` nunca queda repartido entre dos `await`."""
+        if not segmentos_turno:
+            return False
+        cola_turnos.put_nowait(" ".join(segmentos_turno))
+        segmentos_turno.clear()
+        return True
+
+    async def on_transcript(texto: str, is_final: bool, speech_final: bool) -> None:
+        texto = texto.strip()
+
+        if is_final and texto:
+            segmentos_turno.append(texto)
+        turno_cerrado = cerrar_turno() if speech_final else False
+
+        if texto and (turno_cerrado or len(texto.split()) >= PALABRAS_PARA_INTERRUMPIR):
+            await interrumpir_agente()
+
+        if texto:
+            await manager.broadcast(
+                {
+                    "evento": "transcripcion",
+                    "texto": texto,
+                    "es_final": is_final,
+                    "hablante": "cliente",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+
+    async def on_utterance_end() -> None:
+        if cerrar_turno():
+            await interrumpir_agente()
+
+    async def procesar_turno(texto: str) -> None:
+        nonlocal orden_tomada
 
         transcripcion_completa.append(f"Cliente: {texto}")
 
         try:
             resultado = await claude_service.responder(texto)
-            respuesta_texto = resultado["texto"]
 
-            if respuesta_texto:
-                transcripcion_completa.append(f"Agente: {respuesta_texto}")
-                await manager.broadcast(
-                    {
-                        "evento": "transcripcion",
-                        "texto": respuesta_texto,
-                        "es_final": True,
-                        "hablante": "agente",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }
-                )
-                audio = await sintetizar_audio_mulaw(respuesta_texto)
-                await _enviar_audio_a_twilio(websocket, stream_sid, audio)
-
+            # La orden se registra ANTES de hablar: si el cliente cuelga justo
+            # despues de confirmar, el envio de audio falla pero la orden ya
+            # quedo guardada.
             orden = resultado["orden"]
             if orden and restaurante_id:
                 items_validados, total_validado = _validar_y_recalcular_orden(orden["items"], menu)
@@ -248,6 +312,9 @@ async def media_stream(websocket: WebSocket) -> None:
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         }
                     )
+
+            if resultado["texto"]:
+                await hablar(resultado["texto"])
         except Exception:
             logger.exception(
                 "Error procesando turno de conversacion (llamada_id=%s, texto=%r)",
@@ -255,13 +322,37 @@ async def media_stream(websocket: WebSocket) -> None:
                 texto,
             )
             try:
-                audio_fallback = await sintetizar_audio_mulaw("Disculpa, ¿puedes repetir eso?")
-                await _enviar_audio_a_twilio(websocket, stream_sid, audio_fallback)
+                await hablar("Disculpa, ¿puedes repetir eso?")
             except Exception:
                 logger.exception(
                     "Tambien fallo el TTS de fallback tras un error (llamada_id=%s)",
                     llamada_id,
                 )
+
+    async def procesar_turnos() -> None:
+        try:
+            await hablar(claude_service.saludo)
+        except Exception:
+            logger.exception("No se pudo reproducir el saludo (llamada_id=%s)", llamada_id)
+
+        while True:
+            texto = await cola_turnos.get()
+            if texto is None:
+                return
+
+            # Si el cliente dijo varias cosas mientras Claude pensaba, se
+            # responden juntas en un solo turno en vez de una por una.
+            fin = False
+            while not cola_turnos.empty():
+                siguiente = cola_turnos.get_nowait()
+                if siguiente is None:
+                    fin = True
+                    break
+                texto = f"{texto} {siguiente}"
+
+            await procesar_turno(texto)
+            if fin:
+                return
 
     try:
         while True:
@@ -294,7 +385,10 @@ async def media_stream(websocket: WebSocket) -> None:
                 llamada_id = llamada["id"]
 
                 claude_service = ClaudeConversationService(restaurante or {}, menu)
-                deepgram_service = DeepgramStreamingService(on_transcript=on_transcript)
+                deepgram_service = DeepgramStreamingService(
+                    on_transcript=on_transcript,
+                    on_utterance_end=on_utterance_end,
+                )
                 await deepgram_service.start()
 
                 await manager.broadcast(
@@ -306,11 +400,18 @@ async def media_stream(websocket: WebSocket) -> None:
                     }
                 )
 
+                # El worker arranca con el saludo, asi el cliente escucha al
+                # agente en cuanto se conecta, sin tener que decir "¿bueno?".
+                worker_turnos = asyncio.create_task(procesar_turnos())
+
             elif evento == "media":
                 if deepgram_service:
                     payload_b64 = mensaje["media"]["payload"]
                     audio_chunk = base64.b64decode(payload_b64)
                     await deepgram_service.send_audio(audio_chunk)
+
+            elif evento == "mark":
+                marks_pendientes = max(0, marks_pendientes - 1)
 
             elif evento == "stop":
                 break
@@ -318,8 +419,22 @@ async def media_stream(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         pass
     finally:
+        llamada_terminada = True
+
         if deepgram_service:
             await deepgram_service.finish()
+
+        # Lo ultimo que dijo el cliente todavia se procesa (sin audio): puede
+        # ser la confirmacion de su orden justo antes de colgar.
+        if worker_turnos:
+            cerrar_turno()
+            cola_turnos.put_nowait(None)
+            try:
+                await asyncio.wait_for(worker_turnos, timeout=ESPERA_ULTIMO_TURNO_SEGUNDOS)
+            except asyncio.TimeoutError:
+                logger.warning("El ultimo turno no termino a tiempo (llamada_id=%s)", llamada_id)
+            except Exception:
+                logger.exception("Error en el worker de turnos (llamada_id=%s)", llamada_id)
 
         duracion = int(time.time() - inicio_llamada)
         if llamada_id:

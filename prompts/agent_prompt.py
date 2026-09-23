@@ -1,6 +1,13 @@
 from typing import Any
 
 
+def build_saludo(restaurante: dict[str, Any]) -> str:
+    """Lo primero que escucha el cliente al descolgar. Es fijo (no pasa por
+    Claude) para que suene al instante, sin esperar al LLM ni al silencio."""
+    nombre = restaurante.get("nombre") or "el restaurante"
+    return f"¡Hola, gracias por llamar a {nombre}! ¿Qué te preparamos hoy?"
+
+
 def build_system_prompt(restaurante: dict[str, Any], menu: list[dict[str, Any]]) -> str:
     nombre = restaurante.get("nombre", "el restaurante")
     ciudad = restaurante.get("ciudad", "")
@@ -24,7 +31,7 @@ MENU DISPONIBLE (estos son los UNICOS platillos y bebidas que existen):
 {menu_texto}
 
 REGLAS ESTRICTAS:
-1. Saluda siempre mencionando el nombre del restaurante al iniciar la llamada.
+1. Ya saludaste al contestar la llamada (es tu primer mensaje del historial). No vuelvas a saludar ni a presentarte; continua la conversacion desde lo que diga el cliente.
 2. Identifica la intencion del cliente lo antes posible: quiere hacer una orden, tiene una duda (ingredientes, horario, precio) o quiere otra cosa.
 3. Nunca inventes platillos, ingredientes o precios que no esten en el menu de arriba. Si preguntan por algo que no existe, dilo con amabilidad y ofrece alternativas del menu real.
 4. Cuando el cliente pida platillos, confirma cantidad y variante si aplica.

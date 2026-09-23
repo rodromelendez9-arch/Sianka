@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import anthropic
 
-from prompts.agent_prompt import build_system_prompt
+from prompts.agent_prompt import build_saludo, build_system_prompt
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 MODEL = "claude-haiku-4-5"
@@ -49,7 +49,15 @@ class ClaudeConversationService:
 
         self.client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
         self.system_prompt = build_system_prompt(restaurante, menu)
-        self.historial: list[dict[str, Any]] = []
+        self.saludo = build_saludo(restaurante)
+        # El historial debe empezar con un turno "user", asi que la entrada de
+        # la llamada se representa como un mensaje de sistema entre corchetes
+        # y el saludo fijo queda como la primera respuesta del agente. Asi
+        # Claude sabe que ya saludo y no lo repite.
+        self.historial: list[dict[str, Any]] = [
+            {"role": "user", "content": "[Entra la llamada. El cliente aun no ha dicho nada.]"},
+            {"role": "assistant", "content": self.saludo},
+        ]
 
     async def responder(self, texto_usuario: str) -> dict[str, Any]:
         self.historial.append({"role": "user", "content": texto_usuario})
@@ -94,6 +102,23 @@ class ClaudeConversationService:
                     ],
                 }
             )
+
+            # Si Claude solo llamo la herramienta sin decir nada, el cliente
+            # se quedaria en silencio justo despues de confirmar. Se le pide
+            # el cierre (tiempo de recoleccion, despedida) sin herramientas.
+            if not texto_respuesta.strip():
+                cierre = await self.client.messages.create(
+                    model=MODEL,
+                    max_tokens=300,
+                    temperature=0.3,
+                    system=self.system_prompt,
+                    messages=self.historial,
+                    tools=[REGISTRAR_ORDEN_TOOL],
+                    tool_choice={"type": "none"},
+                )
+                texto_respuesta = "".join(b.text for b in cierre.content if b.type == "text")
+                if texto_respuesta:
+                    self.historial.append({"role": "assistant", "content": texto_respuesta})
 
         return {
             "texto": texto_respuesta,

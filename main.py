@@ -7,9 +7,11 @@ from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from routes import auth_routes, dashboard_routes, order_routes, twilio_routes
-
+# Debe ir ANTES de importar las rutas: varios servicios leen sus variables
+# con os.getenv() al importarse (p. ej. DASHBOARD_PASSWORD en auth_service).
 load_dotenv()
+
+from routes import auth_routes, dashboard_routes, order_routes, twilio_routes  # noqa: E402
 
 app = FastAPI(title="Voice Agent - Tacos El Güero")
 

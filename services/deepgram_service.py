@@ -11,7 +11,10 @@ DEEPGRAM_TTS_MODEL = os.getenv("DEEPGRAM_TTS_MODEL", "aura-2-estrella-es")
 
 logger = logging.getLogger(__name__)
 
-TranscriptCallback = Callable[[str, bool], Awaitable[None]]
+# (texto, is_final, speech_final). `is_final` solo marca que ese SEGMENTO ya
+# no va a cambiar; `speech_final` marca que el cliente termino de hablar
+# (endpointing). Un turno completo puede llegar en varios segmentos is_final.
+TranscriptCallback = Callable[[str, bool, bool], Awaitable[None]]
 UtteranceEndCallback = Callable[[], Awaitable[None]]
 
 
@@ -49,6 +52,10 @@ class DeepgramStreamingService:
             punctuate="true",
             interim_results="true",
             smart_format="true",
+            # Silencio (ms) que Deepgram espera para marcar speech_final. El
+            # default es 10ms: cortaria al cliente en cada pausa para respirar.
+            endpointing=300,
+            # Respaldo cuando hay ruido de fondo y speech_final no llega.
             utterance_end_ms=1000,
             vad_events="true",
         )
@@ -63,10 +70,15 @@ class DeepgramStreamingService:
             alternativas = message.channel.alternatives
             if not alternativas:
                 return
-            transcript = alternativas[0].transcript
-            if not transcript:
+            transcript = alternativas[0].transcript or ""
+            speech_final = bool(getattr(message, "speech_final", False))
+            # Un Results vacio con speech_final=True sigue siendo util: cierra
+            # el turno cuyos segmentos ya llegaron antes.
+            if not transcript and not speech_final:
                 return
-            task = asyncio.create_task(self.on_transcript(transcript, message.is_final))
+            task = asyncio.create_task(
+                self.on_transcript(transcript, bool(message.is_final), speech_final)
+            )
             task.add_done_callback(self._log_task_exception)
         elif tipo == "UtteranceEnd" and self.on_utterance_end:
             task = asyncio.create_task(self.on_utterance_end())
