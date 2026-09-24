@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Agua fresca">
+  <ellipse cx="60" cy="104" rx="30" ry="6" fill="#000" opacity=".28"/>
+  <path d="M66 8l-6 40" stroke="#38BDF8" stroke-width="5" stroke-linecap="round"/>
+  <path d="M30 30h60l-8 70H38z" fill="#DCE8EE" opacity=".35"/>
+  <path d="M33 46h54l-6 54H39z" fill="#8FD14F"/>
+  <path d="M33 46h54l-1 8H34z" fill="#B6E77E"/>
+  <rect x="44" y="52" width="12" height="11" rx="2" fill="#FFFFFF" opacity=".6"/>
+  <rect x="61" y="58" width="11" height="10" rx="2" fill="#FFFFFF" opacity=".5"/>
+  <!-- Rodaja de limon -->
+  <circle cx="86" cy="34" r="12" fill="#6FB43F"/>
+  <circle cx="86" cy="34" r="9" fill="#D9F2A6"/>
+  <path d="M86 25v18M77 34h18M80 28l12 12M92 28L80 40" stroke="#9BD35A" stroke-width="1.6"/>
+  <path d="M30 30h60l-8 70H38z" fill="none" stroke="#E7F1F6" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M38 36l4 58" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity=".45"/>
+</svg>

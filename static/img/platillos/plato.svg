@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Platillo">
+  <ellipse cx="60" cy="98" rx="48" ry="8" fill="#000" opacity=".28"/>
+  <!-- Vapor -->
+  <path d="M46 20c-6 6 6 10 0 16M60 14c-6 6 6 10 0 16M74 20c-6 6 6 10 0 16" stroke="#9AA7B4" stroke-width="3" stroke-linecap="round" fill="none" opacity=".7"/>
+  <!-- Plato y guisado -->
+  <ellipse cx="60" cy="78" rx="50" ry="17" fill="#E9EEF2"/>
+  <ellipse cx="60" cy="76" rx="40" ry="12" fill="#F7F9FB"/>
+  <path d="M30 74c2-14 14-24 30-24s28 10 30 24c-8 6-18 9-30 9s-22-3-30-9z" fill="#C0532A"/>
+  <path d="M40 64c6-6 14-8 20-8" stroke="#E0773F" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <circle cx="50" cy="66" r="4" fill="#F3C65A"/><circle cx="68" cy="62" r="4.5" fill="#7A3319"/>
+  <circle cx="74" cy="70" r="3.5" fill="#4DB85C"/><circle cx="58" cy="72" r="3" fill="#4DB85C"/>
+</svg>

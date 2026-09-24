@@ -27,6 +27,7 @@ telefónico, su menú, su configuración y su propio acceso al panel.
 voice-agent/
 ├── main.py                  # App FastAPI: middleware de seguridad, retención, routers
 ├── admin.py                 # Altas de restaurantes/usuarios, ARCO, llave de cifrado
+├── demo.py                  # Modo demo: el panel con datos de ejemplo, sin .env
 ├── schema.sql               # Esquema completo para una base nueva
 ├── migrations/              # Cambios para bases creadas con un schema anterior
 ├── routes/
@@ -46,8 +47,20 @@ voice-agent/
 ├── database/supabase_client.py  # Todas las consultas (cifra/descifra aquí)
 ├── prompts/agent_prompt.py      # Saludo y prompt, armados con los datos de cada restaurante
 ├── models/                      # Validación de las peticiones del panel
-├── templates/ y static/         # Panel y páginas públicas
+├── templates/ y static/         # Panel (centro de mando, css/panel.css, js/ventanas.js) y páginas públicas
+├── static/img/platillos/        # Ilustraciones SVG de los platillos (services/ilustraciones.py las asigna)
+├── tests/                       # Pruebas (unittest), sin servicios reales
 ```
+
+## Ver el panel sin configurar nada (modo demo)
+
+```bash
+python demo.py
+```
+
+Abre `http://127.0.0.1:8765`: el panel real con datos de ejemplo y una
+llamada simulada cada 40 segundos. No necesita `.env` ni toca ningún servicio
+real; sirve para revisar el diseño o para enseñarlo.
 
 ## Instalación
 

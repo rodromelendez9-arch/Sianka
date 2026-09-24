@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Panucho o tostada">
+  <ellipse cx="60" cy="96" rx="48" ry="9" fill="#000" opacity=".28"/>
+  <!-- Tortilla frita -->
+  <ellipse cx="60" cy="78" rx="48" ry="18" fill="#C98B2F"/>
+  <ellipse cx="60" cy="74" rx="48" ry="18" fill="#EDB548"/>
+  <!-- Relleno negro -->
+  <path d="M22 72c4-14 20-20 38-20s34 6 38 20c-8 8-22 12-38 12s-30-4-38-12z" fill="#2E1D17"/>
+  <path d="M34 66c8-6 18-8 26-8" stroke="#4A2F24" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- Huevo cocido -->
+  <ellipse cx="48" cy="62" rx="10" ry="6" fill="#FBF7EE"/>
+  <ellipse cx="48" cy="62" rx="4.5" ry="3" fill="#F6C23E"/>
+  <ellipse cx="72" cy="60" rx="10" ry="6" fill="#FBF7EE"/>
+  <ellipse cx="72" cy="60" rx="4.5" ry="3" fill="#F6C23E"/>
+  <!-- Cebolla, jitomate y aguacate -->
+  <path d="M30 68c5-4 10-4 14 0M78 70c5-4 10-4 14 0M58 72c4-3 8-3 11 0" stroke="#D66AA8" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <circle cx="60" cy="54" r="5" fill="#E0433A"/><circle cx="86" cy="64" r="4" fill="#E0433A"/>
+  <path d="M36 58l6-5 4 6z" fill="#7CC36B"/>
+</svg>

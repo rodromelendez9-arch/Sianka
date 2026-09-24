@@ -1,6 +1,24 @@
 {% extends "base.html" %}
 
-{% block title %}Ordenes{% endblock %}
+{% block title %}Centro de mando{% endblock %}
+
+{% macro ventana(id, titulo, dato="") %}
+<section class="ventana" data-ventana="{{ id }}" aria-labelledby="titulo-{{ id }}">
+  <header class="ventana-barra" tabindex="0" title="Arrastra para mover · doble clic para maximizar · flechas para mover con el teclado">
+    <span class="ventana-icono" aria-hidden="true"></span>
+    <h2 class="ventana-titulo" id="titulo-{{ id }}">{{ titulo }}</h2>
+    <span class="ventana-dato" data-dato-{{ id }}>{{ dato }}</span>
+    <div class="ventana-controles">
+      <button type="button" data-minimizar aria-label="Minimizar {{ titulo }}" title="Minimizar">–</button>
+      <button type="button" data-maximizar aria-label="Maximizar {{ titulo }}" title="Maximizar">□</button>
+    </div>
+  </header>
+  <div class="ventana-cuerpo">
+    {{ caller() }}
+  </div>
+  <span class="ventana-redimensionar" aria-hidden="true"></span>
+</section>
+{% endmacro %}
 
 {% block content %}
 {% set estado_labels = {
@@ -10,127 +28,181 @@
   "lista": "Lista",
   "entregada": "Entregada"
 } %}
+{% set ordenes_hoy = resumen.ordenes %}
 
-<section class="seccion">
-  <div id="llamada-activa" class="llamada-activa-card oculto">
-    <div class="llamada-activa-top">
-      <div class="llamada-activa-info">
-        <div class="barras-audio">
-          <span class="barra"></span>
-          <span class="barra"></span>
-          <span class="barra"></span>
-          <span class="barra"></span>
-          <span class="barra"></span>
-        </div>
-        <span class="llamada-telefono" id="llamada-telefono">—</span>
-      </div>
-      <div class="llamada-activa-info">
-        <span class="llamada-estado" id="llamada-estado">Identificando intencion</span>
-        <span class="llamada-timer" id="llamada-timer">00:00</span>
+<div class="mando-barra">
+  <div class="mando-titulo">
+    <h1>Centro de mando</h1>
+    <span>Arrastra las ventanas para acomodarlas a tu gusto</span>
+  </div>
+  <div class="mando-acciones">
+    <button type="button" class="boton-fantasma" data-reacomodar title="Volver al acomodo original">⟲ Reacomodar</button>
+  </div>
+</div>
+
+<div class="escritorio" id="escritorio">
+
+  {% call ventana("llamada", "Llamada en vivo", restaurante.twilio_number or "") %}
+    <div class="llamada-espera" id="llamada-espera">
+      <div class="radar" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+      <div>
+        <strong>Esperando llamadas</strong>
+        <small>Cuando entre una, aquí verás la conversación en tiempo real.</small>
       </div>
     </div>
-    <div class="llamada-transcripcion" id="llamada-transcripcion"></div>
-  </div>
-</section>
 
-<section class="seccion">
-  <div class="pipeline" id="pipeline">
-    {% for status in ["nueva", "confirmada", "preparando", "lista", "entregada"] %}
-    <div class="pipeline-etapa" data-status="{{ status }}" id="pipeline-{{ status }}">
-      <span class="pipeline-numero" id="pipeline-count-{{ status }}">0</span>
-      <span class="pipeline-label">{{ estado_labels[status] }}</span>
+    <div id="llamada-activa" class="llamada-activa-card oculto">
+      <div class="llamada-activa-top">
+        <div class="llamada-activa-info">
+          <span class="llamada-telefono" id="llamada-telefono">—</span>
+        </div>
+        <div class="llamada-activa-info">
+          <span class="llamada-estado" id="llamada-estado">Identificando intencion</span>
+          <span class="llamada-timer" id="llamada-timer">00:00</span>
+        </div>
+      </div>
+      {# Alturas y retrasos de cada barra en panel.css (la CSP no permite style="" en linea) #}
+      <div class="onda" aria-hidden="true">{% for _ in range(24) %}<span></span>{% endfor %}</div>
+      <div class="llamada-transcripcion" id="llamada-transcripcion" aria-live="polite"></div>
     </div>
-    {% endfor %}
-  </div>
-</section>
+  {% endcall %}
 
-<section class="seccion">
-  <h2 class="seccion-titulo">Ordenes activas</h2>
-  <div class="grid-ordenes" id="grid-ordenes">
-    {% for orden in ordenes_activas %}
-    {% set a_domicilio = orden.tipo_entrega == "domicilio" %}
-    <article class="orden-card" data-orden-id="{{ orden.id }}" data-status="{{ orden.status }}" data-tipo="{{ 'domicilio' if a_domicilio else 'recoger' }}">
-      <div class="orden-card-header">
-        {# Numero diario 001-999 para el mostrador; las ordenes anteriores a la migracion 005 no lo tienen #}
-        <span class="orden-numero">{% if orden.numero_dia %}Orden {{ "%03d"|format(orden.numero_dia) }}{% else %}Orden #{{ orden.id[:8] }}{% endif %}</span>
-        <span class="orden-tiempo-transcurrido" data-created="{{ orden.created_at }}">hace un momento</span>
+  {% call ventana("hoy", "Hoy") %}
+    <div class="kpis">
+      <div class="kpi" data-kpi="ingreso">
+        <div class="kpi-etiqueta">Ingreso</div>
+        <div class="kpi-valor destacado" id="resumen-ingreso" data-valor="{{ resumen.ingreso_total }}">${{ "{:,.2f}".format(resumen.ingreso_total) }}</div>
       </div>
-      {% if orden.nombre_cliente %}<div class="orden-cliente">{{ orden.nombre_cliente }}</div>{% endif %}
-      <div class="orden-pills">
-        <span class="status-pill status-{{ orden.status }}">{{ estado_labels[orden.status] }}</span>
-        <span class="tipo-pill tipo-{{ 'domicilio' if a_domicilio else 'recoger' }}">{{ "A domicilio" if a_domicilio else "Para recoger" }}</span>
+      <div class="kpi" data-kpi="ordenes">
+        <div class="kpi-etiqueta">Ordenes</div>
+        <div class="kpi-valor" id="resumen-ordenes" data-valor="{{ resumen.ordenes }}">{{ resumen.ordenes }}</div>
       </div>
-      <div class="orden-items">
-        {% for item in orden['items'] %}
-        <div class="orden-item">
-          <span><span class="cantidad">{{ item.cantidad }}x</span>{{ item.platillo }}</span>
-          <span>${{ "%.2f"|format(item.subtotal) }}</span>
+      <div class="kpi">
+        <div class="kpi-etiqueta">Llamadas</div>
+        <div class="kpi-valor" id="resumen-llamadas">{{ resumen.llamadas }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-etiqueta">Conversion</div>
+        <div class="kpi-valor" id="resumen-conversion">{{ resumen.conversion }}%</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-etiqueta">Ticket promedio</div>
+        <div class="kpi-valor" id="resumen-ticket">${{ "%.0f"|format(resumen.ingreso_total / resumen.ordenes if resumen.ordenes else 0) }}</div>
+      </div>
+    </div>
+    <div class="grafica">
+      <div class="grafica-titulo"><span>Ordenes por hora</span><span>hoy</span></div>
+      <div id="grafica-hoy" role="img" aria-label="Grafica de ordenes por hora del dia de hoy"></div>
+    </div>
+    <script type="application/json" id="datos-hoy">{{ datos_hoy | tojson }}</script>
+  {% endcall %}
+
+  {% call ventana("pedidos", "Pedidos activos", ordenes_activas|length ~ " activos") %}
+    <div class="pipeline" id="pipeline">
+      {% for status in ["nueva", "confirmada", "preparando", "lista"] %}
+      <div class="pipeline-etapa" data-status="{{ status }}" id="pipeline-{{ status }}">
+        <span class="pipeline-numero" id="pipeline-count-{{ status }}">0</span>
+        <span class="pipeline-label">{{ estado_labels[status] }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="grid-ordenes" id="grid-ordenes">
+      {% for orden in ordenes_activas %}
+      {% set a_domicilio = orden.tipo_entrega == "domicilio" %}
+      {% set numero = "%03d"|format(orden.numero_dia) if orden.numero_dia else "#" ~ orden.id[:8] %}
+      {% if orden.metodo_pago == "efectivo" %}
+        {% set pago = "Paga en efectivo" ~ ((" con $%.2f · cambio $%.2f"|format(orden.paga_con, orden.paga_con - orden.total)) if orden.paga_con else "") %}
+      {% elif orden.metodo_pago == "tarjeta" %}
+        {% set pago = "Paga con tarjeta (llevar terminal)" %}
+      {% else %}
+        {% set pago = "" %}
+      {% endif %}
+      <article class="orden-card" data-orden-id="{{ orden.id }}" data-status="{{ orden.status }}"
+               data-tipo="{{ 'domicilio' if a_domicilio else 'recoger' }}" data-numero="{{ numero }}"
+               data-nombre="{{ orden.nombre_cliente or '' }}" data-direccion="{{ orden.direccion_entrega or '' }}"
+               data-referencias="{{ orden.referencias_entrega or '' }}" data-telefono="{{ orden.telefono_contacto or '' }}"
+               data-pago="{{ pago }}">
+        <div class="orden-card-header">
+          {# Numero diario 001-999 para el mostrador; las ordenes anteriores a la migracion 005 no lo tienen #}
+          <span class="orden-numero">Orden <strong>{{ numero }}</strong></span>
+          <span class="orden-tiempo-transcurrido" data-created="{{ orden.created_at }}">hace un momento</span>
         </div>
-        {% endfor %}
-        {% if a_domicilio and orden.costo_envio %}
-        <div class="orden-item orden-item-envio">
-          <span>Envio</span>
-          <span>${{ "%.2f"|format(orden.costo_envio) }}</span>
+        <div class="orden-fotos" aria-hidden="true">
+          {% for item in orden['items'][:4] %}<img src="{{ item.platillo | ilustracion }}" alt="" loading="lazy">{% endfor %}
         </div>
-        {% endif %}
-      </div>
-      <div class="orden-total">
-        <span>Total</span>
-        <span>${{ "%.2f"|format(orden.total) }}</span>
-      </div>
-      {% if a_domicilio %}
-      <div class="orden-entrega">
-        <div class="orden-entrega-direccion">{{ orden.direccion_entrega or "Direccion no disponible" }}</div>
-        {% if orden.referencias_entrega %}<div class="orden-entrega-detalle">{{ orden.referencias_entrega }}</div>{% endif %}
-        {% if orden.telefono_contacto %}<a class="orden-entrega-telefono" href="tel:{{ orden.telefono_contacto }}">{{ orden.telefono_contacto }}</a>{% endif %}
-        <div class="orden-entrega-detalle">
-          {% if orden.metodo_pago == "efectivo" %}
-            Paga en efectivo{% if orden.paga_con %} con ${{ "%.2f"|format(orden.paga_con) }} · cambio ${{ "%.2f"|format(orden.paga_con - orden.total) }}{% endif %}
-          {% elif orden.metodo_pago == "tarjeta" %}
-            Paga con tarjeta (llevar terminal)
+        {% if orden.nombre_cliente %}<div class="orden-cliente">{{ orden.nombre_cliente }}</div>{% endif %}
+        <div class="orden-pills">
+          <span class="status-pill status-{{ orden.status }}">{{ estado_labels[orden.status] }}</span>
+          <span class="tipo-pill tipo-{{ 'domicilio' if a_domicilio else 'recoger' }}">{{ "A domicilio" if a_domicilio else "Para recoger" }}</span>
+        </div>
+        <div class="orden-items">
+          {% for item in orden['items'] %}
+          <div class="orden-item">
+            <span><span class="cantidad">{{ item.cantidad }}x</span>{{ item.platillo }}</span>
+            <span>${{ "%.2f"|format(item.subtotal) }}</span>
+          </div>
+          {% endfor %}
+          {% if a_domicilio and orden.costo_envio %}
+          <div class="orden-item orden-item-envio">
+            <span>Envio</span>
+            <span>${{ "%.2f"|format(orden.costo_envio) }}</span>
+          </div>
           {% endif %}
         </div>
-      </div>
-      {% endif %}
-      <div class="orden-recoleccion">{{ "Entrega" if a_domicilio else "Recoleccion" }}: {{ orden.tiempo_recoleccion }}</div>
-      <div class="orden-acciones" data-acciones></div>
-    </article>
-    {% else %}
-    <div class="estado-vacio">No hay ordenes activas en este momento.</div>
-    {% endfor %}
-  </div>
-</section>
+        <div class="orden-total">
+          <span>Total</span>
+          <span>${{ "%.2f"|format(orden.total) }}</span>
+        </div>
+        {% if a_domicilio %}
+        <div class="orden-entrega">
+          <div class="orden-entrega-direccion">{{ orden.direccion_entrega or "Direccion no disponible" }}</div>
+          {% if orden.referencias_entrega %}<div class="orden-entrega-detalle">{{ orden.referencias_entrega }}</div>{% endif %}
+          {% if orden.telefono_contacto %}<a class="orden-entrega-telefono" href="tel:{{ orden.telefono_contacto }}">{{ orden.telefono_contacto }}</a>{% endif %}
+          {% if pago %}<div class="orden-entrega-detalle">{{ pago }}</div>{% endif %}
+        </div>
+        {% endif %}
+        <div class="orden-recoleccion">{{ "Entrega" if a_domicilio else "Recoleccion" }}: {{ orden.tiempo_recoleccion }}</div>
+        <div class="orden-acciones" data-acciones></div>
+      </article>
+      {% else %}
+      <div class="estado-vacio">No hay ordenes activas en este momento.</div>
+      {% endfor %}
+    </div>
+  {% endcall %}
 
-<section class="seccion">
-  <div class="resumen" id="resumen">
-    <div class="resumen-header" id="resumen-header">
-      <h3>Resumen del dia</h3>
-      <span class="resumen-flecha">▾</span>
+  {% call ventana("entregas", "Entregas en curso") %}
+    <div class="mapa" id="mapa-entregas" aria-hidden="true">
+      <span class="mapa-base" title="{{ restaurante.nombre }}">★</span>
     </div>
-    <div class="resumen-contenido">
-      <div class="resumen-grid">
-        <div class="resumen-stat">
-          <div class="valor" id="resumen-llamadas">{{ resumen.llamadas }}</div>
-          <div class="etiqueta">Llamadas</div>
-        </div>
-        <div class="resumen-stat">
-          <div class="valor" id="resumen-ordenes">{{ resumen.ordenes }}</div>
-          <div class="etiqueta">Ordenes</div>
-        </div>
-        <div class="resumen-stat">
-          <div class="valor" id="resumen-ingreso">${{ "%.2f"|format(resumen.ingreso_total) }}</div>
-          <div class="etiqueta">Ingreso total</div>
-        </div>
-        <div class="resumen-stat">
-          <div class="valor" id="resumen-conversion">{{ resumen.conversion }}%</div>
-          <div class="etiqueta">Conversion</div>
-        </div>
-      </div>
+    <ul class="lista-entregas" id="lista-entregas"></ul>
+    <p class="estado-vacio oculto" id="entregas-vacio">Sin pedidos a domicilio en curso.</p>
+  {% endcall %}
+
+  {% call ventana("menu", "Menu rapido") %}
+    <p class="ayuda-ventana">Toca un platillo para marcarlo agotado o disponible. El agente deja de ofrecerlo al instante.</p>
+    <div class="menu-rapido">
+      {% for item in menu %}
+      <button type="button" class="platillo-rapido {{ '' if item.disponible else 'agotado' }}"
+              data-rapido-toggle="{{ item.id }}" data-disponible="{{ 'true' if item.disponible else 'false' }}"
+              aria-pressed="{{ 'false' if item.disponible else 'true' }}"
+              title="{{ item.platillo }}: {{ 'disponible' if item.disponible else 'agotado' }}">
+        <img src="{{ item.platillo | ilustracion }}" alt="" loading="lazy">
+        <span>{{ item.platillo }}</span>
+        <small>${{ "%.0f"|format(item.precio) }}</small>
+        <span class="etiqueta-agotado">AGOTADO</span>
+      </button>
+      {% else %}
+      <p class="estado-vacio">Aun no hay platillos. Agregalos en <a href="/menu">Menu</a>.</p>
+      {% endfor %}
     </div>
-  </div>
-</section>
+  {% endcall %}
+
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/graficas.js"></script>
+<script src="/static/js/ventanas.js"></script>
 <script src="/static/js/dashboard-init.js"></script>
 {% endblock %}

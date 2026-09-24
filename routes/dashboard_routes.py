@@ -16,8 +16,9 @@ from prompts.agent_prompt import (
 from routes.order_routes import DIAS_POR_PERIODO, SEMANAS_HISTORIAL_PREDICCION
 from services.auth_service import require_login, restaurante_de_sesion
 from services.cifrado_service import enmascarar_telefono
+from services.ilustraciones import url_ilustracion
 from services.prediccion_service import calcular_prediccion_demanda
-from services.reportes_service import calcular_reporte
+from services.reportes_service import ZONA_HORARIA, a_hora_local, calcular_reporte
 from services.websocket_manager import manager
 
 # Cada ruta recibe `restaurante_id` de la sesion (ver require_login): todas
@@ -25,6 +26,20 @@ from services.websocket_manager import manager
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["enmascarar"] = enmascarar_telefono
+templates.env.filters["ilustracion"] = url_ilustracion
+
+_MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+
+
+def _fecha(iso: Optional[str]) -> str:
+    """"2026-09-24T02:15:33+00:00" -> "23 sep · 20:15" (hora de Mexico)."""
+    if not iso:
+        return "—"
+    local = a_hora_local(iso)
+    return f"{local.day} {_MESES[local.month - 1]} · {local:%H:%M}"
+
+
+templates.env.filters["fecha"] = _fecha
 
 # Router separado: `require_login` depende de `Request` y no se resuelve en
 # conexiones WebSocket (ver auth_service.py). La sesion se valida a mano
@@ -32,15 +47,30 @@ templates.env.filters["enmascarar"] = enmascarar_telefono
 router_ws = APIRouter()
 
 
+def _ordenes_de_hoy_por_hora(restaurante_id: str) -> list[int]:
+    """Cuantas ordenes entraron en cada hora de HOY (hora de Mexico), para la
+    grafica de la ventana "Hoy" del centro de mando."""
+    inicio_local = datetime.now(ZONA_HORARIA).replace(hour=0, minute=0, second=0, microsecond=0)
+    ordenes = supabase_client.get_ordenes_periodo(restaurante_id, inicio_local.astimezone(timezone.utc).isoformat())
+    por_hora = [0] * 24
+    for orden in ordenes:
+        if orden.get("created_at"):
+            por_hora[a_hora_local(orden["created_at"]).hour] += 1
+    return por_hora
+
+
 @router.get("/")
 async def dashboard(request: Request, restaurante_id: str = Depends(require_login)):
+    restaurante = supabase_client.get_restaurante(restaurante_id)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
         {
-            "restaurante": supabase_client.get_restaurante(restaurante_id),
+            "restaurante": restaurante,
             "ordenes_activas": supabase_client.get_ordenes_activas(restaurante_id),
             "resumen": supabase_client.get_resumen_del_dia(restaurante_id),
+            "menu": supabase_client.get_menu(restaurante_id),
+            "datos_hoy": {"ordenes_por_hora": _ordenes_de_hoy_por_hora(restaurante_id)},
             "active_page": "dashboard",
         },
     )

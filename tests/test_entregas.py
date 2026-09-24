@@ -195,7 +195,7 @@ class EntregaCompletaTest(CasoBase):
         self.iniciar_sesion(c, self.email, self.password)
         panel = c.get("/").text
         for texto in ('data-tipo="domicilio"', "Calle 59 #512, Centro", f'href="tel:{TELEFONO_CLIENTE}"',
-                      "cambio $70.00", "Envio", "Entrega: 40 minutos", "Orden 001"):
+                      "cambio $70.00", "Envio", "Entrega: 40 minutos", "<strong>001</strong>"):
             self.assertIn(texto, panel)
 
     def test_numeracion_y_ordenes_anteriores(self):
@@ -206,9 +206,9 @@ class EntregaCompletaTest(CasoBase):
         c = self.cliente()
         self.iniciar_sesion(c, self.email, self.password)
         panel = c.get("/").text
-        self.assertIn("Orden 001", panel)
-        self.assertIn("Orden 002", panel)
-        self.assertIn("Orden #abcdef12", panel, "las ordenes previas a la migracion 005 usan el id")
+        self.assertIn('data-numero="001"', panel)
+        self.assertIn('data-numero="002"', panel)
+        self.assertIn('data-numero="#abcdef12"', panel, "las ordenes previas a la migracion 005 usan el id")
 
     def test_configuracion_de_entregas(self):
         c = self.cliente()

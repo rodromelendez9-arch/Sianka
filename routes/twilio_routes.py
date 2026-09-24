@@ -17,6 +17,7 @@ from prompts.agent_prompt import tiempo_entrega, tiempo_recoleccion
 from services.cifrado_service import enmascarar_telefono, normalizar_telefono
 from services.claude_service import ClaudeConversationService
 from services.deepgram_service import DeepgramStreamingService, sintetizar_audio_mulaw
+from services.ilustraciones import url_ilustracion
 from services.rate_limit_service import limitar
 from services.websocket_manager import manager
 
@@ -404,7 +405,9 @@ async def media_stream(websocket: WebSocket) -> None:
                 "evento": "orden_nueva",
                 "orden_id": nueva_orden["id"],
                 "numero_dia": numero_dia,
-                "items": orden["items"],
+                # La ilustracion viaja con cada platillo para que el panel no
+                # duplique en JS la regla de services/ilustraciones.py.
+                "items": [{**i, "ilustracion": url_ilustracion(i["platillo"])} for i in orden["items"]],
                 "total": orden["total"],
                 "recoleccion": orden["tiempo_recoleccion"],
                 "nombre_cliente": orden["nombre_cliente"],

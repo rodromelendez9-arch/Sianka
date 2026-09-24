@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Refresco">
+  <ellipse cx="60" cy="104" rx="26" ry="6" fill="#000" opacity=".28"/>
+  <!-- Lata -->
+  <path d="M38 22h44l4 8v64l-4 8H38l-4-8V30z" fill="#D7263D"/>
+  <path d="M38 22h44l4 8H34z" fill="#C9D3DB"/>
+  <path d="M34 94h52l-4 8H38z" fill="#AEB9C2"/>
+  <path d="M34 58c10-8 20 8 30 0s16-6 22 0v12c-6-6-12-8-22 0s-20-8-30 0z" fill="#FFFFFF"/>
+  <rect x="40" y="34" width="6" height="56" rx="3" fill="#FFFFFF" opacity=".25"/>
+  <!-- Anillo -->
+  <ellipse cx="60" cy="25" rx="8" ry="2.5" fill="#8C98A3"/>
+  <circle cx="64" cy="25" r="2" fill="#C9D3DB"/>
+</svg>
