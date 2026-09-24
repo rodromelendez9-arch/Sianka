@@ -125,6 +125,19 @@ Marca al número: el panel muestra la llamada en vivo y la orden al confirmarse.
 | Derecho de cancelación (ARCO) | `python admin.py arco-cancelar <slug> <telefono>` |
 | Aplicar la retención ya | `python admin.py purgar-transcripciones` |
 
+## Pruebas
+
+```bash
+python -m unittest discover -s tests -t .
+```
+
+No se conectan a nada real: `tests/__init__.py` fija claves falsas antes de
+importar la app y reemplaza Supabase por una base en memoria
+(`tests/fakes.py`); Twilio, Deepgram y Anthropic también se simulan. Cubren
+el manejo de la llamada, el aislamiento entre restaurantes, el cifrado, ARCO,
+la retención, las entregas, la validación de órdenes, el número diario y las
+páginas públicas. Córrelas antes de cada commit.
+
 ## Cómo funciona una llamada
 
 1. Twilio llama al webhook; el número marcado identifica al restaurante y se
