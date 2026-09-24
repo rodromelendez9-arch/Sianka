@@ -26,6 +26,13 @@
     entregada: [],
   };
 
+  // En pedidos a domicilio, pasar de "preparando" a "lista" significa que
+  // sale a entregarse. Clave: "estadoActual>siguiente" (asi el boton ✕ de una
+  // orden nueva, que tambien lleva a "entregada", no cambia de etiqueta).
+  const ETIQUETAS_DOMICILIO = {
+    "preparando>lista": "Salio a entregar",
+  };
+
   let llamadaInicioTimestamp = null;
   let timerInterval = null;
 
@@ -141,68 +148,104 @@
     }
   }
 
+  function elemento(tag, clase, texto) {
+    const el = document.createElement(tag);
+    if (clase) el.className = clase;
+    if (texto !== undefined) el.textContent = texto;
+    return el;
+  }
+
+  function pesos(valor) {
+    return `$${Number(valor || 0).toFixed(2)}`;
+  }
+
+  function lineaItem(etiqueta, monto, cantidad, claseExtra) {
+    const linea = elemento("div", `orden-item${claseExtra ? ` ${claseExtra}` : ""}`);
+    const nombre = elemento("span");
+    if (cantidad !== undefined) nombre.appendChild(elemento("span", "cantidad", `${cantidad}x`));
+    nombre.appendChild(document.createTextNode(etiqueta || ""));
+    linea.appendChild(nombre);
+    linea.appendChild(elemento("span", undefined, pesos(monto)));
+    return linea;
+  }
+
+  // Numero diario 001-999 para el mostrador; el id solo como respaldo.
+  function etiquetaNumero(orden) {
+    if (orden.numero_dia) return `Orden ${String(orden.numero_dia).padStart(3, "0")}`;
+    return `Orden #${(orden.orden_id || "").slice(0, 8)}`;
+  }
+
+  function crearBloqueEntrega(orden) {
+    const bloque = elemento("div", "orden-entrega");
+    bloque.appendChild(elemento("div", "orden-entrega-direccion", orden.direccion_entrega || "Direccion no disponible"));
+    if (orden.referencias_entrega) {
+      bloque.appendChild(elemento("div", "orden-entrega-detalle", orden.referencias_entrega));
+    }
+    if (orden.telefono_contacto) {
+      const telefono = elemento("a", "orden-entrega-telefono", orden.telefono_contacto);
+      telefono.href = `tel:${orden.telefono_contacto}`;
+      bloque.appendChild(telefono);
+    }
+    let pago = "";
+    if (orden.metodo_pago === "efectivo") {
+      pago = "Paga en efectivo";
+      if (orden.paga_con) {
+        pago += ` con ${pesos(orden.paga_con)} · cambio ${pesos(orden.paga_con - orden.total)}`;
+      }
+    } else if (orden.metodo_pago === "tarjeta") {
+      pago = "Paga con tarjeta (llevar terminal)";
+    }
+    if (pago) bloque.appendChild(elemento("div", "orden-entrega-detalle", pago));
+    return bloque;
+  }
+
   function crearTarjetaOrden(orden) {
-    const card = document.createElement("article");
-    card.className = "orden-card";
+    const aDomicilio = orden.tipo_entrega === "domicilio";
+
+    const card = elemento("article", "orden-card");
     card.dataset.ordenId = orden.orden_id;
     card.dataset.status = orden.status || "nueva";
+    card.dataset.tipo = aDomicilio ? "domicilio" : "recoger";
     card.dataset.created = orden.timestamp || new Date().toISOString();
 
-    const header = document.createElement("div");
-    header.className = "orden-card-header";
-
-    const numero = document.createElement("span");
-    numero.className = "orden-numero";
-    numero.textContent = `Orden #${(orden.orden_id || "").slice(0, 8)}`;
-
-    const tiempo = document.createElement("span");
-    tiempo.className = "orden-tiempo-transcurrido";
+    const header = elemento("div", "orden-card-header");
+    header.appendChild(elemento("span", "orden-numero", etiquetaNumero(orden)));
+    const tiempo = elemento("span", "orden-tiempo-transcurrido", "hace un momento");
     tiempo.dataset.created = card.dataset.created;
-    tiempo.textContent = "hace un momento";
-
-    header.appendChild(numero);
     header.appendChild(tiempo);
-
-    const pill = document.createElement("span");
-    pill.className = `status-pill status-${card.dataset.status}`;
-    pill.textContent = ESTADO_LABELS[card.dataset.status] || card.dataset.status;
-
-    const items = document.createElement("div");
-    items.className = "orden-items";
-    (orden.items || []).forEach((item) => {
-      const linea = document.createElement("div");
-      linea.className = "orden-item";
-      const nombre = document.createElement("span");
-      nombre.innerHTML = `<span class="cantidad">${item.cantidad}x</span>${item.platillo}`;
-      const precio = document.createElement("span");
-      precio.textContent = `$${Number(item.subtotal).toFixed(2)}`;
-      linea.appendChild(nombre);
-      linea.appendChild(precio);
-      items.appendChild(linea);
-    });
-
-    const total = document.createElement("div");
-    total.className = "orden-total";
-    const totalLabel = document.createElement("span");
-    totalLabel.textContent = "Total";
-    const totalValor = document.createElement("span");
-    totalValor.textContent = `$${Number(orden.total || 0).toFixed(2)}`;
-    total.appendChild(totalLabel);
-    total.appendChild(totalValor);
-
-    const recoleccion = document.createElement("div");
-    recoleccion.className = "orden-recoleccion";
-    recoleccion.textContent = `Recoleccion: ${orden.recoleccion || "20 minutos"}`;
-
-    const acciones = document.createElement("div");
-    acciones.className = "orden-acciones";
-    acciones.setAttribute("data-acciones", "");
-
     card.appendChild(header);
-    card.appendChild(pill);
+
+    if (orden.nombre_cliente) card.appendChild(elemento("div", "orden-cliente", orden.nombre_cliente));
+
+    const pills = elemento("div", "orden-pills");
+    pills.appendChild(
+      elemento("span", `status-pill status-${card.dataset.status}`, ESTADO_LABELS[card.dataset.status] || card.dataset.status)
+    );
+    pills.appendChild(
+      elemento("span", `tipo-pill tipo-${card.dataset.tipo}`, aDomicilio ? "A domicilio" : "Para recoger")
+    );
+    card.appendChild(pills);
+
+    const items = elemento("div", "orden-items");
+    (orden.items || []).forEach((item) => items.appendChild(lineaItem(item.platillo, item.subtotal, item.cantidad)));
+    if (aDomicilio && Number(orden.costo_envio) > 0) {
+      items.appendChild(lineaItem("Envio", orden.costo_envio, undefined, "orden-item-envio"));
+    }
     card.appendChild(items);
+
+    const total = elemento("div", "orden-total");
+    total.appendChild(elemento("span", undefined, "Total"));
+    total.appendChild(elemento("span", undefined, pesos(orden.total)));
     card.appendChild(total);
-    card.appendChild(recoleccion);
+
+    if (aDomicilio) card.appendChild(crearBloqueEntrega(orden));
+
+    card.appendChild(
+      elemento("div", "orden-recoleccion", `${aDomicilio ? "Entrega" : "Recoleccion"}: ${orden.recoleccion || ""}`)
+    );
+
+    const acciones = elemento("div", "orden-acciones");
+    acciones.setAttribute("data-acciones", "");
     card.appendChild(acciones);
 
     renderAccionesOrden(card, card.dataset.status);
@@ -248,7 +291,11 @@
     if (!acciones) return;
 
     acciones.innerHTML = "";
-    const definiciones = ACCIONES_POR_ESTADO[status] || [];
+    const definiciones = (ACCIONES_POR_ESTADO[status] || []).map((accion) =>
+      card.dataset.tipo === "domicilio" && ETIQUETAS_DOMICILIO[`${status}>${accion.siguiente}`]
+        ? { ...accion, label: ETIQUETAS_DOMICILIO[`${status}>${accion.siguiente}`] }
+        : accion
+    );
 
     definiciones.forEach((accion) => {
       const boton = document.createElement("button");

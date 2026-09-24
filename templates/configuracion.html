@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Configuracion{% endblock %}
+
+{% block content %}
+<section class="seccion">
+  <h2 class="seccion-titulo">Configuracion del restaurante</h2>
+
+  {% if mensaje %}<div class="config-aviso" role="status">{{ mensaje }}</div>{% endif %}
+  {% if error %}<div class="config-aviso error" role="alert">{{ error }}</div>{% endif %}
+
+  <div class="card">
+    <form method="post" action="/configuracion" class="config-form">
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="slug">Identificador</label>
+          <input type="text" id="slug" value="{{ restaurante.slug }}" readonly>
+        </div>
+        <div class="form-group">
+          <label for="twilio">Numero de telefono del agente</label>
+          <input type="text" id="twilio" value="{{ restaurante.twilio_number or 'Sin asignar' }}" readonly>
+        </div>
+      </div>
+
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="nombre">Nombre</label>
+          <input type="text" id="nombre" name="nombre" value="{{ restaurante.nombre }}" maxlength="120" required>
+        </div>
+        <div class="form-group">
+          <label for="ciudad">Ciudad</label>
+          <input type="text" id="ciudad" name="ciudad" value="{{ restaurante.ciudad or '' }}" maxlength="120">
+        </div>
+      </div>
+
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="horario">Horario</label>
+          <input type="text" id="horario" name="horario" value="{{ restaurante.horario or '' }}" maxlength="300"
+                 placeholder="Lunes a domingo de 13:00 a 23:00">
+        </div>
+        <div class="form-group">
+          <label for="tiempo">Tiempo de recoleccion (minutos)</label>
+          <input type="number" id="tiempo" name="tiempo_recoleccion_min" min="1" max="180"
+                 value="{{ restaurante.tiempo_recoleccion_min or tiempo_default }}" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="saludo">Saludo al contestar</label>
+        <input type="text" id="saludo" name="saludo" value="{{ restaurante.saludo or '' }}" maxlength="300"
+               placeholder="{{ saludo_default }}">
+        <span class="form-ayuda">Lo primero que escucha el cliente; despues el agente pregunta que desean ordenar. Dejalo vacio para usar el saludo por defecto.</span>
+      </div>
+
+      <div class="form-group">
+        <label for="instrucciones">Indicaciones para el agente</label>
+        <textarea id="instrucciones" name="instrucciones_extra" maxlength="2000" rows="4"
+                  placeholder="Ej.: Los martes hay 2x1 en tacos de pollo. No hay estacionamiento.">{{ restaurante.instrucciones_extra or '' }}</textarea>
+        <span class="form-ayuda">Promociones, politicas o datos que el agente debe mencionar cuando aplique.</span>
+      </div>
+
+      <h3 class="config-subtitulo" id="entregas">Entregas a domicilio</h3>
+
+      <label class="config-check">
+        <input type="checkbox" name="ofrece_entregas" {{ "checked" if restaurante.ofrece_entregas else "" }}>
+        <span>Ofrecer envio a domicilio en las llamadas</span>
+      </label>
+
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="costo_envio">Costo de envio (MXN)</label>
+          <input type="number" id="costo_envio" name="costo_envio" min="0" step="0.01"
+                 value="{{ '%.2f'|format(restaurante.costo_envio or 0) }}">
+        </div>
+        <div class="form-group">
+          <label for="pedido_minimo_envio">Pedido minimo para envio (MXN)</label>
+          <input type="number" id="pedido_minimo_envio" name="pedido_minimo_envio" min="0" step="0.01"
+                 value="{{ '%.2f'|format(restaurante.pedido_minimo_envio or 0) }}">
+          <span class="form-ayuda">Sin contar el envio. 0 = sin minimo.</span>
+        </div>
+      </div>
+
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="tiempo_entrega_min">Tiempo de entrega (minutos)</label>
+          <input type="number" id="tiempo_entrega_min" name="tiempo_entrega_min" min="1" max="240"
+                 value="{{ restaurante.tiempo_entrega_min or tiempo_entrega_default }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="zona_entrega">Zona de entrega</label>
+        <textarea id="zona_entrega" name="zona_entrega" maxlength="1000" rows="3"
+                  placeholder="Ej.: Colonias Centro, Garcia Gineres, Itzimna y Mexico. No llegamos a comisarias.">{{ restaurante.zona_entrega or '' }}</textarea>
+        <span class="form-ayuda">El agente la usa para decirle al cliente si llegan a su direccion.</span>
+      </div>
+
+      <h3 class="config-subtitulo" id="datos-legales">Datos para tu aviso de privacidad</h3>
+      {% if not datos_legales_completos %}
+      <div class="config-aviso error" role="alert">
+        Tu restaurante es el responsable de los datos de quienes llaman. Completa estos datos para que tu
+        <a href="/privacidad/{{ restaurante.slug }}" target="_blank" rel="noopener">aviso de privacidad</a> quede completo.
+      </div>
+      {% else %}
+      <p class="form-ayuda">
+        Se publican en tu <a href="/privacidad/{{ restaurante.slug }}" target="_blank" rel="noopener">aviso de privacidad</a>.
+      </p>
+      {% endif %}
+
+      <div class="config-fila">
+        <div class="form-group">
+          <label for="razon_social">Razon social o nombre del titular</label>
+          <input type="text" id="razon_social" name="razon_social" value="{{ restaurante.razon_social or '' }}"
+                 maxlength="200" placeholder="Ej.: Juan Perez Lopez o Tacos El Guero S.A. de C.V.">
+        </div>
+        <div class="form-group">
+          <label for="email_privacidad">Correo para temas de privacidad</label>
+          <input type="email" id="email_privacidad" name="email_privacidad"
+                 value="{{ restaurante.email_privacidad or '' }}" maxlength="200">
+          <span class="form-ayuda">Aqui llegan las solicitudes de acceso, rectificacion, cancelacion u oposicion.</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="domicilio">Domicilio</label>
+        <input type="text" id="domicilio" name="domicilio" value="{{ restaurante.domicilio or '' }}" maxlength="300">
+      </div>
+
+      <div class="form-group">
+        <label for="url_aviso">Aviso de privacidad en tu propio sitio (opcional)</label>
+        <input type="url" id="url_aviso" name="url_aviso_privacidad_propia" maxlength="300"
+               value="{{ restaurante.url_aviso_privacidad or '' }}" placeholder="https://turestaurante.mx/privacidad">
+        <span class="form-ayuda">Si lo publicas en tu sitio, el agente da esta direccion cuando un cliente lo pregunte.</span>
+      </div>
+
+      <label class="config-check">
+        <input type="checkbox" name="aviso_en_llamada" {{ "checked" if restaurante.aviso_en_llamada else "" }}>
+        <span>Mencionar el aviso de privacidad al contestar</span>
+      </label>
+      <p class="form-ayuda">
+        El agente diria: "{{ aviso_breve }}"
+        Si no lo activas, publica el enlace a tu aviso (<a href="{{ url_aviso }}" target="_blank" rel="noopener">{{ url_aviso }}</a>)
+        donde anuncias tu telefono: menu, perfil de Google y redes sociales.
+      </p>
+
+      <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

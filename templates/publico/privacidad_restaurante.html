@@ -1,0 +1,116 @@
+{% extends "publico/base.html" %}
+
+{% set responsable = restaurante.razon_social or restaurante.nombre %}
+{% set contacto = restaurante.email_privacidad or sitio.SIANKA_EMAIL_PRIVACIDAD %}
+
+{% block aviso_pendiente %}
+{% if not (restaurante.razon_social and restaurante.domicilio and restaurante.email_privacidad) %}
+<div class="legal-pendiente" role="alert">
+  Este restaurante aún no completa sus datos de identidad y contacto.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<article>
+  <h1>Aviso de privacidad de {{ restaurante.nombre }}</h1>
+  <p class="legal-fecha">Para pedidos por teléfono · Última actualización: {{ sitio.FECHA_TEXTOS_LEGALES }}</p>
+
+  <section>
+    <h2>1. Responsable</h2>
+    <p>
+      <strong>{{ responsable }}</strong>{% if restaurante.razon_social and restaurante.razon_social != restaurante.nombre %}
+      (&laquo;{{ restaurante.nombre }}&raquo;){% endif %}{% if restaurante.domicilio %}, con domicilio en {{ restaurante.domicilio }}{% endif %},
+      es responsable de los datos personales que proporcionas al llamar para hacer un pedido.
+    </p>
+    {% if contacto %}
+    <p>Contacto de privacidad: <a href="mailto:{{ contacto }}">{{ contacto }}</a></p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>2. Datos que recabamos</h2>
+    <ul>
+      <li>El número telefónico desde el que llamas (si no es privado).</li>
+      <li>El nombre de pila con el que haces tu pedido.</li>
+      <li>Un registro escrito de la llamada y el detalle de tu pedido.</li>
+      {% if restaurante.ofrece_entregas %}
+      <li>Si pides a domicilio: la dirección de entrega, referencias para encontrarla, un teléfono de contacto y la forma de pago (efectivo o tarjeta al recibir, y con cuánto pagas).</li>
+      {% endif %}
+    </ul>
+    <p>
+      <strong>No grabamos el audio de la llamada.</strong> No pedimos datos sensibles ni datos de tarjetas bancarias.
+    </p>
+  </section>
+
+  <section>
+    <h2>3. Para qué los usamos</h2>
+    <ul>
+      <li>Tomar y preparar tu pedido{% if restaurante.ofrece_entregas %} y, si lo pides a domicilio, entregártelo y contactarte si el repartidor lo necesita{% endif %}.</li>
+      <li>Responder las dudas que hagas durante la llamada (menú, precios, horario).</li>
+      <li>Estadísticas internas agregadas (por ejemplo, las horas con más pedidos), sin identificarte.</li>
+    </ul>
+    <p><strong>No usamos tus datos para publicidad ni los vendemos.</strong></p>
+  </section>
+
+  <section>
+    <h2>4. Tu consentimiento</h2>
+    <p>
+      {% if restaurante.aviso_en_llamada %}
+      Al inicio de cada llamada te informamos que tus datos solo se usan para atender tu pedido y dónde consultar este aviso.
+      {% else %}
+      Este aviso está disponible en los medios donde publicamos nuestro teléfono, y puedes pedirlo durante la llamada.
+      {% endif %}
+      Al hacer tu pedido consientes el uso de tus datos para los fines descritos. Si no estás de acuerdo, puedes colgar
+      en cualquier momento y solicitar que se eliminen tus datos (ver punto 7).
+    </p>
+  </section>
+
+  <section>
+    <h2>5. Quién más trata tus datos</h2>
+    <p>
+      Para atender las llamadas y registrar los pedidos nos apoyamos en proveedores de servicios tecnológicos que tratan
+      tus datos únicamente por nuestra cuenta y para ese fin, con obligaciones de confidencialidad:
+    </p>
+    <ul>
+      <li>Plataforma de atención telefónica y registro de pedidos.</li>
+      {% for categoria in categorias_proveedores %}
+      <li>{{ categoria }}.</li>
+      {% endfor %}
+    </ul>
+    <p>
+      Algunos de estos proveedores pueden ubicarse fuera de México. No transferimos tus datos a terceros, salvo cuando
+      lo requiera una autoridad competente conforme a la ley.
+    </p>
+  </section>
+
+  <section>
+    <h2>6. Seguridad y conservación</h2>
+    <p>
+      Tus datos se guardan cifrados y solo el personal que atiende tu pedido puede consultarlos.
+      El registro de la llamada{% if restaurante.ofrece_entregas %}, la dirección y el teléfono de entrega{% endif %}
+      se eliminan automáticamente a los {{ sitio.RETENCION_TRANSCRIPCIONES_DIAS }} días.
+      Los datos del pedido, sin tus datos de contacto, se conservan el tiempo que exijan nuestras obligaciones legales y fiscales.
+    </p>
+  </section>
+
+  <section>
+    <h2>7. Tus derechos (ARCO)</h2>
+    <p>
+      Puedes acceder a tus datos, rectificarlos, cancelarlos u oponerte a su uso, así como revocar tu consentimiento.
+      Escribe{% if contacto %} a <a href="mailto:{{ contacto }}">{{ contacto }}</a>{% endif %} indicando tu nombre,
+      el número desde el que llamaste, el derecho que quieres ejercer y, en su caso, un documento que acredite tu identidad.
+      Te responderemos en un plazo máximo de 20 días hábiles, sin costo.
+    </p>
+    <p>
+      Si consideras que tu derecho a la protección de datos personales ha sido vulnerado, puedes acudir a la
+      autoridad competente en la materia.
+    </p>
+  </section>
+
+  <section>
+    <h2>8. Cambios a este aviso</h2>
+    <p>Cualquier cambio se publicará en esta misma página, con la fecha de la última actualización.</p>
+  </section>
+</article>
+{% endblock %}

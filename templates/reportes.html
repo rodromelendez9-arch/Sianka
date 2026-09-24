@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes{% endblock %}
+
+{% block content %}
+{% set periodos = {"semana": "Esta semana", "mes": "Este mes", "todo": "Todo el tiempo"} %}
+
+<section class="seccion">
+  <div class="reportes-header">
+    <h2 class="seccion-titulo">Reportes</h2>
+    <div class="periodo-selector">
+      {% for valor, etiqueta in periodos.items() %}
+      <a
+        href="/reportes?periodo={{ valor }}"
+        class="periodo-opcion {{ 'activa' if reporte.periodo == valor else '' }}"
+      >{{ etiqueta }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if reporte.total_ordenes == 0 and reporte.total_llamadas == 0 %}
+  <div class="estado-vacio">No hay datos suficientes en este periodo todavia.</div>
+  {% else %}
+  <div class="reportes-grid">
+    <div class="card reporte-card">
+      <div class="reporte-etiqueta">Platillo mas vendido</div>
+      {% if reporte.platillo_top %}
+      <div class="reporte-valor">{{ reporte.platillo_top.platillo }}</div>
+      <div class="reporte-detalle">
+        {{ reporte.platillo_top.cantidad }} vendidos · ${{ "%.2f"|format(reporte.platillo_top.ingreso) }} en ingresos
+      </div>
+      {% else %}
+      <div class="reporte-valor reporte-valor-vacio">Sin datos</div>
+      {% endif %}
+    </div>
+
+    <div class="card reporte-card">
+      <div class="reporte-etiqueta">Hora pico de llamadas</div>
+      {% if reporte.hora_pico %}
+      <div class="reporte-valor">{{ reporte.hora_pico.etiqueta }}</div>
+      <div class="reporte-detalle">{{ reporte.hora_pico.llamadas }} llamadas en esa hora</div>
+      {% else %}
+      <div class="reporte-valor reporte-valor-vacio">Sin datos</div>
+      {% endif %}
+    </div>
+
+    <div class="card reporte-card">
+      <div class="reporte-etiqueta">Ticket promedio</div>
+      <div class="reporte-valor">${{ "%.2f"|format(reporte.ticket_promedio) }}</div>
+      <div class="reporte-detalle">{{ reporte.total_ordenes }} ordenes en el periodo</div>
+    </div>
+
+    <div class="card reporte-card">
+      <div class="reporte-etiqueta">Dia mas fuerte</div>
+      {% if reporte.dia_mas_fuerte %}
+      <div class="reporte-valor">{{ reporte.dia_mas_fuerte.dia }}</div>
+      <div class="reporte-detalle">{{ reporte.dia_mas_fuerte.ordenes }} ordenes ese dia</div>
+      {% else %}
+      <div class="reporte-valor reporte-valor-vacio">Sin datos</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card reporte-resumen-total">
+    <div class="reporte-resumen-item">
+      <span class="valor">{{ reporte.total_llamadas }}</span>
+      <span class="etiqueta">Llamadas</span>
+    </div>
+    <div class="reporte-resumen-item">
+      <span class="valor">{{ reporte.total_ordenes }}</span>
+      <span class="etiqueta">Ordenes</span>
+    </div>
+    <div class="reporte-resumen-item">
+      <span class="valor">${{ "%.2f"|format(reporte.ingreso_total) }}</span>
+      <span class="etiqueta">Ingreso total</span>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="seccion">
+  <div class="prediccion-header">
+    <h2 class="seccion-titulo">Pronostico de demanda</h2>
+    <span class="prediccion-nota">Basado en el promedio de cada dia en las ultimas 8 semanas</span>
+  </div>
+
+  {% set confianza_label = {"alta": "Confianza alta", "media": "Confianza media", "baja": "Confianza baja", "sin_datos": "Sin datos aun"} %}
+
+  <div class="prediccion-grid">
+    {% for dia in pronostico %}
+    <div class="prediccion-card confianza-{{ dia.confianza }}">
+      <div class="prediccion-dia">{{ dia.dia }}</div>
+      <div class="prediccion-ordenes">{{ dia.ordenes_esperadas }}</div>
+      <div class="prediccion-ordenes-label">ordenes esperadas</div>
+      <div class="prediccion-detalle">
+        {% if dia.hora_pico_estimada %}
+        Pico estimado: {{ dia.hora_pico_estimada }}
+        {% else %}
+        Sin hora pico aun
+        {% endif %}
+      </div>
+      <div class="prediccion-confianza-pill confianza-pill-{{ dia.confianza }}">
+        {{ confianza_label[dia.confianza] }}
+        {% if dia.muestras > 0 %}· {{ dia.muestras }} semana{{ "s" if dia.muestras != 1 else "" }}{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -9,9 +9,18 @@ from deepgram.core.events import EventType
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 DEEPGRAM_TTS_MODEL = os.getenv("DEEPGRAM_TTS_MODEL", "aura-2-estrella-es")
 
+# Excluye el audio de las llamadas del Model Improvement Program de Deepgram
+# (que no lo use para entrenar sus modelos). Deepgram indica que puede tener
+# impacto en precio: https://dpgr.am/deepgram-mip -- se deja activado por
+# defecto porque son datos personales de terceros (los clientes que llaman).
+DEEPGRAM_MIP_OPT_OUT = os.getenv("DEEPGRAM_MIP_OPT_OUT", "true").lower() != "false"
+
 logger = logging.getLogger(__name__)
 
-TranscriptCallback = Callable[[str, bool], Awaitable[None]]
+# (texto, is_final, speech_final). `is_final` solo marca que ese SEGMENTO ya
+# no va a cambiar; `speech_final` marca que el cliente termino de hablar
+# (endpointing). Un turno completo puede llegar en varios segmentos is_final.
+TranscriptCallback = Callable[[str, bool, bool], Awaitable[None]]
 UtteranceEndCallback = Callable[[], Awaitable[None]]
 
 
@@ -49,8 +58,13 @@ class DeepgramStreamingService:
             punctuate="true",
             interim_results="true",
             smart_format="true",
+            # Silencio (ms) que Deepgram espera para marcar speech_final. El
+            # default es 10ms: cortaria al cliente en cada pausa para respirar.
+            endpointing=300,
+            # Respaldo cuando hay ruido de fondo y speech_final no llega.
             utterance_end_ms=1000,
             vad_events="true",
+            mip_opt_out="true" if DEEPGRAM_MIP_OPT_OUT else None,
         )
         self._socket = await self._connection_cm.__aenter__()
         self._socket.on(EventType.MESSAGE, self._on_message)
@@ -63,10 +77,15 @@ class DeepgramStreamingService:
             alternativas = message.channel.alternatives
             if not alternativas:
                 return
-            transcript = alternativas[0].transcript
-            if not transcript:
+            transcript = alternativas[0].transcript or ""
+            speech_final = bool(getattr(message, "speech_final", False))
+            # Un Results vacio con speech_final=True sigue siendo util: cierra
+            # el turno cuyos segmentos ya llegaron antes.
+            if not transcript and not speech_final:
                 return
-            task = asyncio.create_task(self.on_transcript(transcript, message.is_final))
+            task = asyncio.create_task(
+                self.on_transcript(transcript, bool(message.is_final), speech_final)
+            )
             task.add_done_callback(self._log_task_exception)
         elif tipo == "UtteranceEnd" and self.on_utterance_end:
             task = asyncio.create_task(self.on_utterance_end())
@@ -99,9 +118,10 @@ class DeepgramStreamingService:
         self._socket = None
 
 
-async def sintetizar_audio_mulaw(texto: str) -> bytes:
+async def sintetizar_audio_mulaw(texto: str, modelo: Optional[str] = None) -> bytes:
     """Convierte texto a audio mulaw 8kHz sin encabezado (formato que Twilio
-    Media Streams requiere), usando Deepgram Aura TTS."""
+    Media Streams requiere), usando Deepgram Aura TTS. `modelo` es la voz del
+    restaurante (columna `voz_tts`); si no tiene, se usa DEEPGRAM_TTS_MODEL."""
     if not DEEPGRAM_API_KEY:
         raise RuntimeError("DEEPGRAM_API_KEY no esta configurado en .env")
 
@@ -109,10 +129,11 @@ async def sintetizar_audio_mulaw(texto: str) -> bytes:
 
     audio_stream = client.speak.v1.audio.generate(
         text=texto,
-        model=DEEPGRAM_TTS_MODEL,
+        model=modelo or DEEPGRAM_TTS_MODEL,
         encoding="mulaw",
         sample_rate=8000,
         container="none",
+        mip_opt_out=True if DEEPGRAM_MIP_OPT_OUT else None,
     )
 
     audio_bytes = bytearray()

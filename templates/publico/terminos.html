@@ -1,0 +1,118 @@
+{% extends "publico/base.html" %}
+
+{% block content %}
+<article>
+  <h1>Términos de servicio de Sianka</h1>
+  <p class="legal-fecha">Última actualización: {{ sitio.FECHA_TEXTOS_LEGALES }}</p>
+
+  <section>
+    <h2>1. El servicio</h2>
+    <p>
+      {{ sitio.SIANKA_RAZON_SOCIAL or "Sianka" }} ("Sianka") ofrece a restaurantes un servicio automatizado de atención telefónica
+      que contesta sus llamadas, informa sobre su menú y toma pedidos para recoger o a domicilio, junto con un panel web
+      para gestionarlos. Estos términos aplican a los restaurantes que contratan el servicio y a las personas que usan su panel.
+    </p>
+  </section>
+
+  <section>
+    <h2>2. Cuentas y acceso</h2>
+    <ul>
+      <li>Cada restaurante es responsable de las cuentas que solicita para su personal y de mantener sus contraseñas en secreto.</li>
+      <li>Cada cuenta solo tiene acceso a la información de su propio restaurante.</li>
+      <li>El restaurante debe avisarnos de inmediato si sospecha un acceso no autorizado.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>3. Información del restaurante</h2>
+    <p>
+      El restaurante es responsable de que su menú, precios, horario e indicaciones para el servicio sean correctos
+      y estén actualizados. El servicio solo ofrece los platillos del menú registrado y el total de cada pedido se
+      calcula con los precios vigentes en el sistema.
+    </p>
+  </section>
+
+  <section>
+    <h2>4. Atención automatizada de llamadas</h2>
+    <p>
+      Como cualquier sistema automático, el servicio puede entender mal alguna palabra; por eso repite el pedido completo,
+      incluida la dirección en pedidos a domicilio, para que el cliente lo confirme antes de registrarlo. El restaurante
+      debe revisar los pedidos en su panel antes de prepararlos. El restaurante decide si el servicio menciona su aviso de
+      privacidad al contestar; si no lo hace, es responsable de poner ese aviso a disposición de sus clientes por otros medios,
+      por ejemplo donde publica su teléfono.
+    </p>
+  </section>
+
+  <section>
+    <h2>5. Entregas a domicilio</h2>
+    <p>
+      Si el restaurante activa las entregas a domicilio, define en su panel el costo de envío, el pedido mínimo, el tiempo
+      estimado y su zona de entrega, y el servicio los comunica a sus clientes. La preparación, el reparto, el cobro al
+      recibir y la atención de incidencias de cada entrega son responsabilidad del restaurante. Sianka solo registra el
+      pedido y los datos de entrega, y los elimina de forma automática al cumplirse el plazo de conservación.
+    </p>
+  </section>
+
+  <section>
+    <h2>6. Protección de datos personales</h2>
+    <p>
+      Respecto de los datos de las personas que llaman, <strong>el restaurante es el responsable</strong> y
+      <strong>Sianka actúa como encargado</strong>. En consecuencia:
+    </p>
+    <ul>
+      <li>Sianka trata esos datos solo para prestar el servicio y conforme a las instrucciones del restaurante; no los usa para fines propios ni los vende.</li>
+      <li>Sianka aplica medidas de seguridad administrativas, técnicas y físicas, descritas en su <a href="/privacidad#seguridad">aviso de privacidad</a>, y guarda confidencialidad sobre los datos.</li>
+      <li>Sianka solo se apoya en proveedores tecnológicos de las categorías indicadas en su aviso de privacidad, sujetos a obligaciones de confidencialidad.</li>
+      <li>Sianka avisará al restaurante sin demora si ocurre una vulneración de seguridad que afecte esos datos.</li>
+      <li>El restaurante debe completar los datos de su aviso de privacidad en el panel y atender las solicitudes de derechos ARCO de sus clientes; Sianka le ayudará a localizar, entregar o eliminar los datos correspondientes.</li>
+      <li>Al terminar el servicio, Sianka eliminará o anonimizará los datos personales de los clientes del restaurante, salvo los que deba conservar por obligación legal.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>7. Uso aceptable</h2>
+    <p>
+      No está permitido usar el servicio para fines ilícitos, para suplantar a otra persona o negocio, para recabar
+      datos sensibles o números de tarjetas bancarias por teléfono, ni para intentar acceder a información de otros restaurantes.
+    </p>
+  </section>
+
+  <section>
+    <h2>8. Precio y pago</h2>
+    <p>El precio, los minutos incluidos y la forma de pago son los del plan que contrate cada restaurante.</p>
+  </section>
+
+  <section>
+    <h2>9. Disponibilidad y responsabilidad</h2>
+    <p>
+      Sianka procura que el servicio esté disponible de forma continua, pero puede haber interrupciones por
+      mantenimiento o por fallas de los proveedores de telefonía, voz o infraestructura. Sianka no es responsable
+      de pérdidas derivadas de pedidos mal capturados que el restaurante no haya revisado, ni de causas fuera de su control.
+    </p>
+  </section>
+
+  <section>
+    <h2>10. Terminación</h2>
+    <p>
+      El restaurante puede cancelar el servicio en cualquier momento. Sianka puede suspenderlo si se incumplen estos
+      términos, avisando previamente al restaurante salvo en casos urgentes de seguridad.
+    </p>
+  </section>
+
+  <section>
+    <h2>11. Cambios a estos términos</h2>
+    <p>
+      Publicaremos cualquier cambio en esta página con su fecha de actualización y lo notificaremos a los restaurantes
+      con anticipación razonable.
+    </p>
+  </section>
+
+  <section>
+    <h2>12. Ley aplicable</h2>
+    <p>
+      Estos términos se rigen por las leyes de los Estados Unidos Mexicanos. Cualquier controversia se someterá a los
+      tribunales competentes del domicilio de Sianka.
+    </p>
+  </section>
+</article>
+{% endblock %}

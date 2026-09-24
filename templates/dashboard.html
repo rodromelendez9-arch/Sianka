@@ -48,12 +48,18 @@
   <h2 class="seccion-titulo">Ordenes activas</h2>
   <div class="grid-ordenes" id="grid-ordenes">
     {% for orden in ordenes_activas %}
-    <article class="orden-card" data-orden-id="{{ orden.id }}" data-status="{{ orden.status }}">
+    {% set a_domicilio = orden.tipo_entrega == "domicilio" %}
+    <article class="orden-card" data-orden-id="{{ orden.id }}" data-status="{{ orden.status }}" data-tipo="{{ 'domicilio' if a_domicilio else 'recoger' }}">
       <div class="orden-card-header">
-        <span class="orden-numero">Orden #{{ orden.id[:8] }}</span>
+        {# Numero diario 001-999 para el mostrador; las ordenes anteriores a la migracion 005 no lo tienen #}
+        <span class="orden-numero">{% if orden.numero_dia %}Orden {{ "%03d"|format(orden.numero_dia) }}{% else %}Orden #{{ orden.id[:8] }}{% endif %}</span>
         <span class="orden-tiempo-transcurrido" data-created="{{ orden.created_at }}">hace un momento</span>
       </div>
-      <span class="status-pill status-{{ orden.status }}">{{ estado_labels[orden.status] }}</span>
+      {% if orden.nombre_cliente %}<div class="orden-cliente">{{ orden.nombre_cliente }}</div>{% endif %}
+      <div class="orden-pills">
+        <span class="status-pill status-{{ orden.status }}">{{ estado_labels[orden.status] }}</span>
+        <span class="tipo-pill tipo-{{ 'domicilio' if a_domicilio else 'recoger' }}">{{ "A domicilio" if a_domicilio else "Para recoger" }}</span>
+      </div>
       <div class="orden-items">
         {% for item in orden['items'] %}
         <div class="orden-item">
@@ -61,12 +67,32 @@
           <span>${{ "%.2f"|format(item.subtotal) }}</span>
         </div>
         {% endfor %}
+        {% if a_domicilio and orden.costo_envio %}
+        <div class="orden-item orden-item-envio">
+          <span>Envio</span>
+          <span>${{ "%.2f"|format(orden.costo_envio) }}</span>
+        </div>
+        {% endif %}
       </div>
       <div class="orden-total">
         <span>Total</span>
         <span>${{ "%.2f"|format(orden.total) }}</span>
       </div>
-      <div class="orden-recoleccion">Recoleccion: {{ orden.tiempo_recoleccion }}</div>
+      {% if a_domicilio %}
+      <div class="orden-entrega">
+        <div class="orden-entrega-direccion">{{ orden.direccion_entrega or "Direccion no disponible" }}</div>
+        {% if orden.referencias_entrega %}<div class="orden-entrega-detalle">{{ orden.referencias_entrega }}</div>{% endif %}
+        {% if orden.telefono_contacto %}<a class="orden-entrega-telefono" href="tel:{{ orden.telefono_contacto }}">{{ orden.telefono_contacto }}</a>{% endif %}
+        <div class="orden-entrega-detalle">
+          {% if orden.metodo_pago == "efectivo" %}
+            Paga en efectivo{% if orden.paga_con %} con ${{ "%.2f"|format(orden.paga_con) }} · cambio ${{ "%.2f"|format(orden.paga_con - orden.total) }}{% endif %}
+          {% elif orden.metodo_pago == "tarjeta" %}
+            Paga con tarjeta (llevar terminal)
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+      <div class="orden-recoleccion">{{ "Entrega" if a_domicilio else "Recoleccion" }}: {{ orden.tiempo_recoleccion }}</div>
       <div class="orden-acciones" data-acciones></div>
     </article>
     {% else %}
@@ -106,12 +132,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll(".orden-card").forEach((card) => {
-      window.renderAccionesOrden(card, card.dataset.status);
-    });
-    window.actualizarPipelineDesdeDOM();
-  });
-</script>
+<script src="/static/js/dashboard-init.js"></script>
 {% endblock %}
