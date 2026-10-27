@@ -32,6 +32,7 @@
       </nav>
       <div class="header-spacer"></div>
       <span class="reloj" data-reloj aria-hidden="true"></span>
+      <button type="button" class="boton-sonido" data-sonido aria-pressed="false">Activar sonido</button>
       <span class="badge-escuchando">
         <span class="punto-animado"></span>
         En linea
@@ -39,6 +40,8 @@
       <a href="/logout" class="header-logout">Salir</a>
     </div>
   </header>
+
+  <a href="/panel" class="aviso-pedidos" data-aviso-pedidos role="status" hidden></a>
 
   <main class="contenedor">
     {% block content %}{% endblock %}
