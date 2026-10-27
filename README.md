@@ -186,9 +186,21 @@ páginas públicas. Córrelas antes de cada commit.
 - Cada restaurante solo ve sus propios datos; RLS activo en todas las tablas.
 - Avisos públicos en `/privacidad`, `/privacidad/<slug>` y `/terminos`.
 
-## Producción
+## Producción (Railway)
 
-Usa un dominio propio con HTTPS/WSS (Railway, Render, Fly.io o un VPS con
-Nginx) en lugar de ngrok, pon `PUBLIC_BASE_URL` con ese dominio y actualiza
-el webhook de Twilio. El límite de intentos y los eventos en vivo viven en
-memoria: corre un solo proceso hasta moverlos a un almacén compartido.
+`railway.json` ya trae el comando de arranque (uvicorn detrás del proxy de
+Railway, para que la IP real del cliente llegue al límite de intentos y la
+firma de Twilio se valide con `https`), el healthcheck `/health` y **una sola
+réplica**: el límite de intentos y los eventos en vivo viven en memoria, así
+que no escales a más réplicas hasta moverlos a un almacén compartido.
+`.python-version` fija Python 3.12.
+
+1. Railway → **New Project → Deploy from GitHub repo** → este repositorio.
+2. **Variables**: las de `.env.example`. Obligatorias: `TWILIO_AUTH_TOKEN`,
+   `DEEPGRAM_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`,
+   `SESSION_SECRET_KEY`, `DATA_ENCRYPTION_KEY` (la **misma** que tu `.env`
+   local, porque `admin.py` la usa para cifrar) y `PUBLIC_BASE_URL`. No pongas
+   `PORT` ni `HOST`: Railway asigna el puerto.
+3. **Settings → Networking → Generate Domain** (o tu dominio propio) y pon esa
+   URL en `PUBLIC_BASE_URL`.
+4. En Twilio apunta el número a `https://TU-DOMINIO/webhook/twilio/incoming` (POST).
