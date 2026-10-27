@@ -18,8 +18,9 @@ load_dotenv()
 
 from database import supabase_client  # noqa: E402
 from routes import auth_routes, dashboard_routes, order_routes, publico_routes, twilio_routes  # noqa: E402
-from services import cifrado_service, sitio  # noqa: E402
+from services import cifrado_service, registro, sitio  # noqa: E402
 
+registro.configurar()
 logger = logging.getLogger(__name__)
 
 INTERVALO_PURGA_SEGUNDOS = 24 * 60 * 60
