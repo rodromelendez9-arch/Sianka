@@ -77,9 +77,11 @@
         break;
       case "orden_nueva":
         agregarOrdenNueva(data);
+        registrarPedidoNuevo(data.orden_id);
         break;
       case "orden_actualizada":
         actualizarStatusOrden(data);
+        registrarCambioDePedido(data.orden_id, data.status);
         break;
       case "llamada_terminada":
         ocultarLlamadaActiva();
@@ -480,6 +482,116 @@
     });
   }
 
+  // ---------------- Alerta de pedidos nuevos ----------------
+  // Mientras haya pedidos sin confirmar: aviso arriba, contador en la pestana
+  // y un timbre que se repite. El navegador solo deja sonar despues de que
+  // alguien toca la pagina, por eso el boton "Activar sonido".
+
+  const REPETIR_TIMBRE_MS = 20000;
+  const pedidosSinConfirmar = new Set();
+  const tituloOriginal = document.title;
+  let audioCtx = null;
+  let intervaloTimbre = null;
+
+  function leerPreferenciaSonido() {
+    try {
+      return localStorage.getItem("sianka-sonido") === "si";
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function guardarPreferenciaSonido(activo) {
+    try {
+      localStorage.setItem("sianka-sonido", activo ? "si" : "no");
+    } catch (error) {
+      /* sin almacenamiento: la preferencia dura solo esta visita */
+    }
+  }
+
+  let sonidoActivo = leerPreferenciaSonido();
+
+  function prepararAudio() {
+    if (!audioCtx) {
+      const Contexto = window.AudioContext || window.webkitAudioContext;
+      if (!Contexto) return null;
+      audioCtx = new Contexto();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function timbre() {
+    if (!sonidoActivo) return;
+    const ctx = prepararAudio();
+    if (!ctx || ctx.state !== "running") return;
+    // Dos tonos cortos, como timbre de mostrador.
+    [880, 1175].forEach((frecuencia, i) => {
+      const inicio = ctx.currentTime + i * 0.22;
+      const osc = ctx.createOscillator();
+      const vol = ctx.createGain();
+      osc.frequency.value = frecuencia;
+      vol.gain.setValueAtTime(0.0001, inicio);
+      vol.gain.exponentialRampToValueAtTime(0.35, inicio + 0.02);
+      vol.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.2);
+      osc.connect(vol).connect(ctx.destination);
+      osc.start(inicio);
+      osc.stop(inicio + 0.21);
+    });
+  }
+
+  function pintarBotonSonido() {
+    const boton = document.querySelector("[data-sonido]");
+    if (!boton) return;
+    boton.setAttribute("aria-pressed", String(sonidoActivo));
+    boton.textContent = sonidoActivo ? "Sonido activado" : "Activar sonido";
+  }
+
+  function actualizarAlertaPedidos() {
+    const total = pedidosSinConfirmar.size;
+    const aviso = document.querySelector("[data-aviso-pedidos]");
+    if (aviso) {
+      aviso.hidden = total === 0;
+      aviso.textContent = total === 1 ? "1 pedido nuevo sin confirmar" : `${total} pedidos nuevos sin confirmar`;
+    }
+    document.title = total ? `(${total}) Pedido nuevo · ${tituloOriginal}` : tituloOriginal;
+
+    if (total && !intervaloTimbre) {
+      intervaloTimbre = setInterval(timbre, REPETIR_TIMBRE_MS);
+    } else if (!total && intervaloTimbre) {
+      clearInterval(intervaloTimbre);
+      intervaloTimbre = null;
+    }
+  }
+
+  function registrarPedidoNuevo(ordenId) {
+    if (!ordenId) return;
+    pedidosSinConfirmar.add(String(ordenId));
+    actualizarAlertaPedidos();
+    timbre();
+  }
+
+  function registrarCambioDePedido(ordenId, status) {
+    if (status !== "nueva" && pedidosSinConfirmar.delete(String(ordenId))) actualizarAlertaPedidos();
+  }
+
+  function inicializarAlertas() {
+    document.querySelectorAll('.orden-card[data-status="nueva"]').forEach((card) => {
+      pedidosSinConfirmar.add(String(card.dataset.ordenId));
+    });
+    actualizarAlertaPedidos();
+    pintarBotonSonido();
+
+    document.querySelector("[data-sonido]")?.addEventListener("click", () => {
+      sonidoActivo = !sonidoActivo;
+      guardarPreferenciaSonido(sonidoActivo);
+      pintarBotonSonido();
+      if (sonidoActivo) timbre();
+    });
+    // Si el sonido ya estaba activado, el primer toque a la pagina lo desbloquea.
+    document.addEventListener("pointerdown", () => sonidoActivo && prepararAudio(), { once: true });
+  }
+
   // ---------------- Reloj ----------------
 
   function iniciarReloj() {
@@ -520,6 +632,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     iniciarReloj();
+    inicializarAlertas();
     actualizarTiemposTranscurridos();
     setInterval(actualizarTiemposTranscurridos, 30000);
     conectarWebSocket();

@@ -99,6 +99,15 @@ def normalizar_telefono(telefono: Optional[str]) -> Optional[str]:
     return limpio if re.fullmatch(r"\+?\d{7,15}", limpio) else None
 
 
+def telefono_mexico(telefono: Optional[str]) -> Optional[str]:
+    """Numero que capturan los restaurantes: "999 123 4567" -> "+529991234567".
+    Acepta 10 digitos o +52 y 10 digitos; cualquier otra cosa -> None."""
+    digitos = re.sub(r"\D", "", telefono or "")
+    if len(digitos) == 12 and digitos.startswith("52"):
+        digitos = digitos[2:]
+    return f"+52{digitos}" if len(digitos) == 10 else None
+
+
 def huella_telefono(telefono: Optional[str]) -> Optional[str]:
     normalizado = normalizar_telefono(telefono)
     if not normalizado:

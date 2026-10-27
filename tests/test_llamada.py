@@ -26,7 +26,7 @@ class ClaudeGuionado:
         self.saludo = build_saludo(restaurante)
         self.en_curso = 0
 
-    async def responder(self, texto, registrar_orden):
+    async def responder(self, texto, registrar_orden, transferir=None):
         self.en_curso += 1
         ClaudeGuionado.max_en_paralelo = max(ClaudeGuionado.max_en_paralelo, self.en_curso)
         ClaudeGuionado.recibidos.append(texto)

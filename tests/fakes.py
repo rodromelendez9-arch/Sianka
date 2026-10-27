@@ -28,7 +28,7 @@ class _Resultado:
 class _Consulta:
     def __init__(self, tabla: str):
         self.tabla, self.filtros, self.op, self.valores = tabla, [], "select", None
-        self.con_ordenes, self.lim = False, None
+        self.con_ordenes, self.lim, self.desde = False, None, 0
         self.not_ = self  # solo se usa como .not_.is_(columna, "null")
 
     def select(self, columnas="*", count=None):
@@ -70,6 +70,10 @@ class _Consulta:
         self.lim = n
         return self
 
+    def range(self, desde, hasta):
+        self.desde, self.lim = desde, hasta - desde + 1
+        return self
+
     def execute(self):
         filas = TABLAS[self.tabla]
         if self.op == "insert":
@@ -85,6 +89,7 @@ class _Consulta:
         if self.op == "update":
             for f in elegidas:
                 f.update(self.valores)
+        elegidas = elegidas[self.desde:]
         salida = copy.deepcopy(elegidas[: self.lim] if self.lim else elegidas)
         if self.con_ordenes:
             for f in salida:

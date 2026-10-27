@@ -150,7 +150,7 @@ class ClaudeQuePideADomicilio:
     def __init__(self, restaurante, menu, numero_visible=True):
         self.saludo = "Hola"
 
-    async def responder(self, texto, registrar_orden):
+    async def responder(self, texto, registrar_orden, transferir=None):
         ok, mensaje = await registrar_orden(DOMICILIO)
         return {"texto": mensaje, "orden_registrada": ok}
 

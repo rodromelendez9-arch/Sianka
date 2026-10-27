@@ -164,6 +164,52 @@ body.panel .header-logout {
   color: var(--text-3);
 }
 
+body.panel .boton-sonido {
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+body.panel .boton-sonido[aria-pressed="true"] {
+  background: var(--success-soft);
+  border-color: rgba(45, 217, 143, 0.3);
+  color: var(--success);
+}
+
+/* Aviso de pedidos sin confirmar: visible en cualquier pantalla del panel */
+body.panel .aviso-pedidos {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: block;
+  text-align: center;
+  padding: 0.6rem 1rem;
+  background: var(--primary);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-decoration: none;
+  animation: aviso-pulso 1.6s ease-in-out infinite;
+}
+
+body.panel .aviso-pedidos[hidden] {
+  display: none;
+}
+
+@keyframes aviso-pulso {
+  50% { background: var(--primary-hover); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.panel .aviso-pedidos { animation: none; }
+}
+
 body.panel .contenedor {
   max-width: none;
   padding: 1.25rem 1.5rem 3rem;

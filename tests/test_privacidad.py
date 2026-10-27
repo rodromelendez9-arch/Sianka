@@ -13,7 +13,7 @@ class ClaudeQueRegistra:
     def __init__(self, restaurante, menu, numero_visible=True):
         self.saludo = build_saludo(restaurante)
 
-    async def responder(self, texto, registrar_orden):
+    async def responder(self, texto, registrar_orden, transferir=None):
         ok, mensaje = await registrar_orden({
             "nombre_cliente": "  María   Fernanda ", "tipo_entrega": "recoger",
             "items": [{"platillo": "Taco de cochinita", "cantidad": 2}], "total": 1,

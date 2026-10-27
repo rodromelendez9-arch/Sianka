@@ -73,7 +73,8 @@ class CasoBase(unittest.TestCase):
     def iniciar_stream(ws, restaurante: dict, telefono=TELEFONO_CLIENTE):
         token = tr._generar_stream_token(restaurante["id"], telefono)
         ws.send_text(json.dumps(
-            {"event": "start", "start": {"streamSid": "MZ1", "customParameters": {"stream_token": token}}}
+            {"event": "start", "start": {"streamSid": "MZ1", "callSid": "CA1",
+                                         "customParameters": {"stream_token": token}}}
         ))
 
     @staticmethod

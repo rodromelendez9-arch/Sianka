@@ -1330,3 +1330,30 @@ button {
   height: 1.05rem;
   accent-color: var(--primary);
 }
+
+.config-guia {
+  font-size: 0.88rem;
+  color: var(--text-2);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+}
+
+.config-guia summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.config-guia p,
+.config-guia ul {
+  margin: 0.6rem 0 0;
+}
+
+.config-guia ul ul {
+  margin-top: 0.3rem;
+}
+
+.config-guia code {
+  font-size: 0.85rem;
+}

@@ -13,6 +13,7 @@ import os
 os.environ.update(
     {
         "SESSION_HTTPS_ONLY": "false",
+        "LOG_LEVEL": "CRITICAL",
         "SESSION_SECRET_KEY": "clave-de-sesion-de-pruebas",
         "DATA_ENCRYPTION_KEY": base64.urlsafe_b64encode(b"k" * 32).decode(),
         "TWILIO_AUTH_TOKEN": "token-de-pruebas",
