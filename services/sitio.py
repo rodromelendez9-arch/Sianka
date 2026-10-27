@@ -11,6 +11,20 @@ SIANKA_RAZON_SOCIAL = os.getenv("SIANKA_RAZON_SOCIAL", "").strip()
 SIANKA_DOMICILIO = os.getenv("SIANKA_DOMICILIO", "").strip()
 SIANKA_EMAIL_PRIVACIDAD = os.getenv("SIANKA_EMAIL_PRIVACIDAD", "").strip()
 
+# Contacto comercial de la pagina de venta (/). Todos son opcionales: si
+# falta alguno, su boton simplemente no se muestra.
+CONTACTO_WHATSAPP = "".join(c for c in os.getenv("SIANKA_WHATSAPP", "") if c.isdigit())
+CONTACTO_EMAIL = os.getenv("SIANKA_EMAIL_CONTACTO", "").strip()
+# Numero de demostracion al que un prospecto puede llamar para probar el agente
+TELEFONO_DEMO = os.getenv("SIANKA_TELEFONO_DEMO", "").strip()
+
+
+def whatsapp_url(mensaje: str = "Hola, quiero ver una demo de Sianka para mi restaurante") -> str:
+    from urllib.parse import quote
+
+    return f"https://wa.me/{CONTACTO_WHATSAPP}?text={quote(mensaje)}" if CONTACTO_WHATSAPP else ""
+
+
 # Fecha de la version vigente de los textos legales. Actualizala cada vez
 # que cambie el contenido de /privacidad o /terminos.
 FECHA_TEXTOS_LEGALES = "23 de septiembre de 2026"

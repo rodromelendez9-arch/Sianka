@@ -1,6 +1,8 @@
 """Modo demo: el panel real con datos de ejemplo, para verlo o ensenarlo.
 
-    python demo.py        ->  http://127.0.0.1:8765
+    python demo.py
+      http://127.0.0.1:8765        pagina de venta
+      http://127.0.0.1:8765/panel  panel del restaurante (sin login)
 
 - Usa la base en memoria de las pruebas (tests/fakes.py) y claves falsas: NO
   toca Supabase, Twilio, Deepgram ni Anthropic, ni necesita el .env.
@@ -127,7 +129,9 @@ from services.auth_service import require_login  # noqa: E402
 main.app.dependency_overrides[require_login] = lambda: rid
 from routes import dashboard_routes  # noqa: E402
 
-dashboard_routes.restaurante_de_sesion = lambda _conexion: rid  # el WebSocket del panel tambien
+# Sesion forzada solo para el WebSocket del panel: asi "/" sigue mostrando la
+# pagina de venta y /panel (require_login sobrescrito arriba) el panel.
+dashboard_routes.restaurante_de_sesion = lambda conexion: rid if conexion.scope["type"] == "websocket" else None
 
 # ---------------- Llamada simulada cada 40 s ----------------
 import asyncio  # noqa: E402
@@ -208,5 +212,7 @@ async def lifespan_demo(app):
 
 main.app.router.lifespan_context = lifespan_demo
 
-print("Demo lista en http://127.0.0.1:8765", flush=True)
+print("Demo lista:", flush=True)
+print("  Pagina de venta  http://127.0.0.1:8765", flush=True)
+print("  Panel            http://127.0.0.1:8765/panel", flush=True)
 uvicorn.run(main.app, host="127.0.0.1", port=8765, log_level="warning")

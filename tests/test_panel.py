@@ -104,7 +104,7 @@ class CentroDeMandoTest(CasoBase):
         datos, no codigo, y si estan permitidos."""
         paginas = ["/", "/llamadas", "/menu", "/reportes", "/configuracion", "/privacidad",
                    "/privacidad/tacos-el-guero", "/terminos"]
-        paginas_sin_sesion = ["/login"]
+        paginas_sin_sesion = ["/login", "/"]  # "/" sin sesion = pagina de venta
         for ruta in paginas + paginas_sin_sesion:
             with self.subTest(ruta):
                 html = (self.cliente() if ruta in paginas_sin_sesion else self.c).get(ruta).text

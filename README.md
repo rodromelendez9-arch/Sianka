@@ -58,9 +58,19 @@ voice-agent/
 python demo.py
 ```
 
-Abre `http://127.0.0.1:8765`: el panel real con datos de ejemplo y una
-llamada simulada cada 40 segundos. No necesita `.env` ni toca ningún servicio
-real; sirve para revisar el diseño o para enseñarlo.
+- `http://127.0.0.1:8765` — la página de venta.
+- `http://127.0.0.1:8765/panel` — el panel con datos de ejemplo y una llamada
+  simulada cada 40 segundos.
+
+No necesita `.env` ni toca ningún servicio real; sirve para revisar el diseño
+o para enseñarlo.
+
+## Página de venta y panel
+
+`/` muestra la **página de venta** a los visitantes y el **panel** a quien ya
+inició sesión (los restaurantes no cambian su liga). `/panel` lleva siempre al
+panel. Los botones de contacto de la página salen de `SIANKA_WHATSAPP`,
+`SIANKA_EMAIL_CONTACTO` y `SIANKA_TELEFONO_DEMO` en `.env`.
 
 ## Instalación
 

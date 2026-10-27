@@ -14,6 +14,7 @@ from prompts.agent_prompt import (
     url_aviso_privacidad,
 )
 from routes.order_routes import DIAS_POR_PERIODO, SEMANAS_HISTORIAL_PREDICCION
+from routes.publico_routes import render_inicio
 from services.auth_service import require_login, restaurante_de_sesion
 from services.cifrado_service import enmascarar_telefono
 from services.ilustraciones import url_ilustracion
@@ -60,7 +61,22 @@ def _ordenes_de_hoy_por_hora(restaurante_id: str) -> list[int]:
 
 
 @router.get("/")
-async def dashboard(request: Request, restaurante_id: str = Depends(require_login)):
+async def inicio(request: Request):
+    """Una sola direccion para todos: el visitante ve la pagina de venta y el
+    restaurante con sesion iniciada ve su panel (no cambia su liga)."""
+    restaurante_id = restaurante_de_sesion(request)
+    if not restaurante_id:
+        return render_inicio(request)
+    return _panel(request, restaurante_id)
+
+
+@router.get("/panel")
+async def panel(request: Request, restaurante_id: str = Depends(require_login)):
+    """Liga directa al panel (sin sesion manda al login, no a la pagina de venta)."""
+    return _panel(request, restaurante_id)
+
+
+def _panel(request: Request, restaurante_id: str):
     restaurante = supabase_client.get_restaurante(restaurante_id)
     return templates.TemplateResponse(
         request,
