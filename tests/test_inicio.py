@@ -53,6 +53,13 @@ class PaginaDeVentaTest(CasoBase):
                 self.assertIn('data-ventana="pedidos"', html)
                 self.assertIn('content="noindex, nofollow"', html)
 
+    def test_login_no_muestra_cuenta_demo_fuera_de_demo(self):
+        """El recuadro con correo y contrasena de prueba solo lo activa
+        demo.py; en la app normal jamas debe aparecer."""
+        html = self.cliente().get("/login").text
+        self.assertNotIn("Modo demo", html)
+        self.assertNotIn("login-demo", html)
+
     def test_robots_y_sitemap_incluyen_la_pagina_de_venta(self):
         c = self.cliente()
         robots = c.get("/robots.txt").text

@@ -20,6 +20,15 @@
       </div>
       <h1>Acceso del equipo</h1>
 
+      {% if demo_credenciales %}
+      {# Solo existe en modo demo (demo.py); en produccion nunca se define. #}
+      <div class="login-demo" role="note">
+        <strong>Modo demo</strong>
+        <span>Correo: <code>{{ demo_credenciales.email }}</code></span>
+        <span>Contraseña: <code>{{ demo_credenciales.password }}</code></span>
+      </div>
+      {% endif %}
+
       {% if error %}
       <div class="login-error">{{ error }}</div>
       {% endif %}

@@ -59,8 +59,9 @@ python demo.py
 ```
 
 - `http://127.0.0.1:8765` — la página de venta.
-- `http://127.0.0.1:8765/panel` — el panel con datos de ejemplo y una llamada
-  simulada cada 40 segundos.
+- `http://127.0.0.1:8765/login` — entra al panel con la cuenta de prueba, que
+  aparece en la misma pantalla de login (solo en modo demo). Trae datos de
+  ejemplo y una llamada simulada cada 40 segundos.
 
 No necesita `.env` ni toca ningún servicio real; sirve para revisar el diseño
 o para enseñarlo.
