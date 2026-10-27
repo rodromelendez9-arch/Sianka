@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Pollo asado">
+  <ellipse cx="60" cy="98" rx="48" ry="8" fill="#000" opacity=".28"/>
+  <!-- Plato -->
+  <ellipse cx="60" cy="80" rx="50" ry="17" fill="#E9EEF2"/>
+  <ellipse cx="60" cy="78" rx="40" ry="12" fill="#F7F9FB"/>
+  <!-- Pierna de pollo -->
+  <path d="M28 70c-6-18 8-36 28-34 16 2 22 18 14 30-6 9-18 12-30 11-6 0-10-3-12-7z" fill="#C8621F"/>
+  <path d="M34 60c2-10 10-16 20-15" stroke="#E98A3A" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M38 52l14 6M36 62l16 6M46 46l12 6" stroke="#7A3312" stroke-width="3" stroke-linecap="round"/>
+  <path d="M66 62l18 8" stroke="#F3E9DC" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="87" cy="67" r="5" fill="#F3E9DC"/><circle cx="87" cy="74" r="5" fill="#F3E9DC"/>
+  <!-- Limon -->
+  <path d="M84 84a12 12 0 0 1 20-6z" fill="#7CC36B"/>
+  <path d="M86 83a10 10 0 0 1 15-5" stroke="#CFEFA8" stroke-width="2" fill="none"/>
+</svg>

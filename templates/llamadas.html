@@ -3,9 +3,14 @@
 {% block title %}Llamadas{% endblock %}
 
 {% block content %}
-<section class="seccion">
-  <h2 class="seccion-titulo">Historial de llamadas</h2>
+<div class="encabezado-pagina">
+  <div>
+    <h1>Llamadas</h1>
+    <p>Las ultimas {{ llamadas|length }} llamadas que atendio el agente.</p>
+  </div>
+</div>
 
+<section class="seccion">
   {% if llamadas %}
   <table class="tabla-llamadas">
     <thead>
@@ -20,10 +25,15 @@
     <tbody>
       {% for llamada in llamadas %}
       <tr>
-        <td>{{ llamada.nombre_cliente or "—" }}</td>
-        {# Enmascarado: el panel no necesita el numero completo para operar #}
-        <td>{{ llamada.telefono_cliente | enmascarar }}</td>
         <td>
+          <span class="celda-cliente">
+            <span class="avatar" aria-hidden="true">{{ (llamada.nombre_cliente or "?")[:1] | upper }}</span>
+            {{ llamada.nombre_cliente or "—" }}
+          </span>
+        </td>
+        {# Enmascarado: el panel no necesita el numero completo para operar #}
+        <td class="cifra">{{ llamada.telefono_cliente | enmascarar }}</td>
+        <td class="cifra">
           {% if llamada.duracion_segundos %}
             {{ (llamada.duracion_segundos // 60) }}:{{ "%02d"|format(llamada.duracion_segundos % 60) }}
           {% else %}
@@ -39,7 +49,7 @@
           —
           {% endif %}
         </td>
-        <td>{{ llamada.created_at }}</td>
+        <td class="cifra">{{ llamada.created_at | fecha }}</td>
       </tr>
       {% endfor %}
     </tbody>

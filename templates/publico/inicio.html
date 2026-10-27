@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sianka · {{ titulo }}</title>
+  <meta name="description" content="{{ descripcion }}">
+  <meta name="robots" content="index, follow">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="{{ canonical }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sianka">
+  <meta property="og:locale" content="es_MX">
+  <meta property="og:title" content="Sianka · Tu restaurante contesta cada llamada">
+  <meta property="og:description" content="{{ descripcion }}">
+  <meta property="og:url" content="{{ canonical }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/inicio.css">
+</head>
+{#
+  Pagina de venta de Sianka.
+  Tecnicas (catalogo de la skill epic-design), sin librerias externas porque
+  la CSP solo permite scripts propios:
+  - Hero en 6 capas de profundidad (data-depth 0-5) con paralaje de raton y scroll
+  - Secuencia animada en bucle: llamada -> conversacion -> comanda -> cocina
+  - Columna fija (sticky) con pasos que cambian el estado del telefono al hacer scroll
+  - Aparicion escalonada (stagger) de tarjetas y lineas de texto enmascaradas
+  - Vista previa del panel en perspectiva 3D que se endereza con el scroll
+  - Contadores animados y calculadora interactiva
+  Todo respeta prefers-reduced-motion y reduce efectos en pantallas tactiles.
+#}
+{% set contacto = sitio.whatsapp_url() or ("mailto:" ~ sitio.CONTACTO_EMAIL if sitio.CONTACTO_EMAIL else "#contacto") %}
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="barra" data-barra>
+    <a class="marca" href="/" aria-label="Sianka, inicio">
+      <span class="marca-logo" aria-hidden="true">S</span>
+      <span class="marca-nombre">Sianka</span>
+    </a>
+    <nav class="barra-nav" aria-label="Secciones">
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#panel">El panel</a>
+      <a href="#calculadora">Calculadora</a>
+      <a href="#preguntas">Preguntas</a>
+    </nav>
+    <div class="barra-acciones">
+      <a class="enlace-sutil" href="/login">Entrar</a>
+      <a class="boton boton-primario boton-chico" href="{{ contacto }}" {% if contacto.startswith('http') %}target="_blank" rel="noopener"{% endif %}>Agenda una demo</a>
+    </div>
+  </header>
+
+  <main id="contenido">
+
+    {# ================= HERO: 6 capas de profundidad ================= #}
+    <section class="hero" data-escena="hero">
+      <div class="capa profundidad-0" data-depth="0" aria-hidden="true">
+        <div class="rejilla"></div>
+      </div>
+      <div class="capa profundidad-1" data-depth="1" aria-hidden="true">
+        <span class="brillo brillo-a"></span>
+        <span class="brillo brillo-b"></span>
+      </div>
+      <div class="capa profundidad-2" data-depth="2" aria-hidden="true">
+        <img class="flotante f-taco" src="/static/img/platillos/taco.svg" alt="">
+        <img class="flotante f-horchata" src="/static/img/platillos/agua-horchata.svg" alt="">
+        <img class="flotante f-torta" src="/static/img/platillos/torta.svg" alt="">
+        <img class="flotante f-jamaica" src="/static/img/platillos/agua-jamaica.svg" alt="">
+        <img class="flotante f-tostada" src="/static/img/platillos/tostada.svg" alt="">
+      </div>
+
+      <div class="hero-contenido">
+        <div class="capa-texto profundidad-4" data-depth="4">
+          <p class="etiqueta revelar">Agente telefónico para restaurantes</p>
+          <h1 class="titulo-hero">
+            <span class="linea-mascara"><span>Tu restaurante</span></span>
+            <span class="linea-mascara"><span>contesta <em class="palabra-rotativa" data-rotar='["cada llamada.", "en hora pico.", "y toma el pedido.", "aunque estés ocupado."]'>cada llamada.</em></span></span>
+          </h1>
+          <p class="lead revelar">Sianka atiende el teléfono por ti: toma el pedido completo, confirma el total
+            y lo manda a tu cocina al instante. Para recoger o a domicilio. Sin llamadas perdidas.</p>
+          <div class="hero-ctas revelar">
+            <a class="boton boton-primario" href="{{ contacto }}" {% if contacto.startswith('http') %}target="_blank" rel="noopener"{% endif %}>Agenda una demo</a>
+            <a class="boton boton-fantasma" href="#como-funciona">Ver cómo funciona ↓</a>
+          </div>
+          {% if sitio.TELEFONO_DEMO %}
+          <p class="demo-telefono revelar">¿Quieres escucharlo? Llama y pide algo: <a href="tel:{{ sitio.TELEFONO_DEMO }}">{{ sitio.TELEFONO_DEMO }}</a></p>
+          {% endif %}
+          <ul class="hero-chips revelar" aria-label="Incluye">
+            <li>Recoger y domicilio</li>
+            <li>Número de orden del día</li>
+            <li>Menú en tiempo real</li>
+          </ul>
+        </div>
+
+        {# Escenario: telefono + comanda (capa 3, el protagonista) #}
+        <div class="escenario profundidad-3" data-depth="3" aria-label="Demostración: una llamada convertida en pedido">
+          <div class="telefono" data-hero-telefono>
+            <div class="telefono-pantalla">
+              <div class="telefono-estado">
+                <span class="punto-vivo" aria-hidden="true"></span>
+                <span data-hero-estado>Llamada entrante</span>
+                <span class="telefono-tiempo" data-hero-tiempo>00:00</span>
+              </div>
+              <div class="telefono-onda" aria-hidden="true">{% for _ in range(18) %}<i></i>{% endfor %}</div>
+              <div class="telefono-chat" data-hero-chat aria-live="off"></div>
+            </div>
+          </div>
+
+          <div class="comanda" data-hero-comanda>
+            <div class="comanda-cabeza">
+              <span>Orden</span>
+              <strong data-hero-numero>042</strong>
+            </div>
+            <div class="comanda-cliente" data-hero-cliente>—</div>
+            <ul class="comanda-items" data-hero-items></ul>
+            <div class="comanda-total"><span>Total</span><strong data-hero-total>$0</strong></div>
+            <div class="comanda-sello" data-hero-sello>En cocina ✓</div>
+          </div>
+
+          <div class="capa profundidad-5 particulas" data-depth="5" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+
+      <a class="bajar" href="#problema" aria-label="Bajar">
+        <span></span>
+      </a>
+    </section>
+
+    {# ================= EL PROBLEMA ================= #}
+    <section class="seccion problema" id="problema" data-escena="problema">
+      <div class="capa profundidad-1" data-depth="1" aria-hidden="true"><span class="brillo brillo-c"></span></div>
+      <div class="contenedor">
+        <p class="etiqueta revelar">El problema</p>
+        <h2 class="titulo-seccion iluminar" data-iluminar>
+          En hora pico el teléfono suena, la cocina está a tope y nadie alcanza a contestar.
+          Cada llamada que no contestas es un pedido que se va con otro.
+        </h2>
+        <div class="problema-tarjetas">
+          <article class="tarjeta-problema revelar">
+            <span class="icono" aria-hidden="true">📞</span>
+            <h3>Llamadas sin contestar</h3>
+            <p>Justo cuando más venderías, tu equipo está cocinando y despachando.</p>
+          </article>
+          <article class="tarjeta-problema revelar">
+            <span class="icono" aria-hidden="true">📝</span>
+            <h3>Pedidos mal anotados</h3>
+            <p>Un platillo de menos o una dirección incompleta cuesta una entrega y un cliente.</p>
+          </article>
+          <article class="tarjeta-problema revelar">
+            <span class="icono" aria-hidden="true">⏱️</span>
+            <h3>Clientes en espera</h3>
+            <p>Nadie quiere quedarse colgado al teléfono para pedir unos tacos.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    {# ================= COMO FUNCIONA: columna fija + pasos ================= #}
+    <section class="seccion como" id="como-funciona" data-escena="como">
+      <div class="contenedor como-rejilla">
+        <div class="como-fijo">
+          <div class="mini-telefono" data-paso-visual="1">
+            <div class="mini-vista vista-1">
+              <div class="anillo" aria-hidden="true"><span></span><span></span></div>
+              <strong>Llamada entrante</strong>
+              <small>Tu número de siempre</small>
+            </div>
+            <div class="mini-vista vista-2">
+              <p class="burbuja cliente">Dos de cochinita y una horchata, porfa</p>
+              <p class="burbuja agente">¡Va! ¿A nombre de quién y es para recoger o a domicilio?</p>
+              <p class="burbuja cliente">Ana, paso por ella</p>
+              <p class="burbuja agente">Listo Ana: $70. Tu orden es la 42, en 20 minutos.</p>
+            </div>
+            <div class="mini-vista vista-3">
+              <div class="mini-orden">
+                <span class="mini-orden-num">042</span>
+                <img src="/static/img/platillos/taco.svg" alt="">
+                <img src="/static/img/platillos/agua-horchata.svg" alt="">
+                <strong>Ana · Para recoger</strong>
+                <span class="mini-orden-estado">Nueva en cocina</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ol class="pasos">
+          <li class="paso" data-paso="1">
+            <span class="paso-num">01</span>
+            <h3>El cliente llama a tu número</h3>
+            <p>Sianka contesta al primer timbrazo con el nombre de tu restaurante. Atiende varias llamadas
+              al mismo tiempo, así que nadie escucha ocupado.</p>
+          </li>
+          <li class="paso" data-paso="2">
+            <span class="paso-num">02</span>
+            <h3>Toma el pedido como lo harías tú</h3>
+            <p>Solo ofrece lo que hay en tu menú, resuelve dudas de precios y horario, pregunta si es para
+              recoger o a domicilio y repite todo antes de confirmar. El total lo calcula el sistema con tus precios.</p>
+          </li>
+          <li class="paso" data-paso="3">
+            <span class="paso-num">03</span>
+            <h3>El pedido aparece en tu cocina</h3>
+            <p>En segundos ves la orden en tu panel con su número del día, el nombre del cliente y,
+              si es a domicilio, la dirección y con cuánto paga. Tu equipo solo cocina y entrega.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    {# ================= FUNCIONES ================= #}
+    <section class="seccion funciones" id="funciones" data-escena="funciones">
+      <div class="capa profundidad-2" data-depth="2" aria-hidden="true">
+        <img class="flotante f-refresco" src="/static/img/platillos/refresco.svg" alt="">
+        <img class="flotante f-pollo" src="/static/img/platillos/pollo.svg" alt="">
+      </div>
+      <div class="contenedor">
+        <p class="etiqueta revelar">Lo que hace por tu restaurante</p>
+        <h2 class="titulo-seccion revelar">Todo lo que necesitas para vender por teléfono, sin contratar a nadie más.</h2>
+        <div class="rejilla-funciones">
+          <article class="funcion revelar" data-inclinar>
+            <img src="/static/img/platillos/torta.svg" alt="" loading="lazy">
+            <h3>Recoger y a domicilio</h3>
+            <p>Pide dirección y referencias, respeta tu zona de entrega y tu pedido mínimo, y suma el envío al total.</p>
+          </article>
+          <article class="funcion revelar" data-inclinar>
+            <span class="numero-grande" aria-hidden="true">042</span>
+            <h3>Número de orden del día</h3>
+            <p>Cada pedido recibe su número, del 001 al 999. El cliente llega al mostrador sabiendo qué pedir.</p>
+          </article>
+          <article class="funcion revelar" data-inclinar>
+            <img src="/static/img/platillos/refresco.svg" alt="" loading="lazy">
+            <h3>Menú siempre al día</h3>
+            <p>¿Se acabó algo? Márcalo como agotado con un clic y deja de ofrecerse en la siguiente llamada.</p>
+          </article>
+          <article class="funcion revelar" data-inclinar>
+            <span class="icono-grande" aria-hidden="true">📈</span>
+            <h3>Reportes y pronóstico</h3>
+            <p>Platillo más vendido, horas pico, ticket promedio y cuántas órdenes esperar cada día.</p>
+          </article>
+          <article class="funcion revelar" data-inclinar>
+            <span class="icono-grande" aria-hidden="true">🏪</span>
+            <h3>Una o varias sucursales</h3>
+            <p>Cada sucursal con su número, su menú y su panel. Cada quien ve solo lo suyo.</p>
+          </article>
+          <article class="funcion revelar" data-inclinar>
+            <span class="icono-grande" aria-hidden="true">🔒</span>
+            <h3>Datos de tus clientes protegidos</h3>
+            <p>Teléfonos, nombres y direcciones se guardan cifrados y se borran solos al cumplir su plazo.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    {# ================= EL PANEL: perspectiva 3D que se endereza ================= #}
+    <section class="seccion panel-vista" id="panel" data-escena="panel">
+      <div class="contenedor">
+        <p class="etiqueta revelar">Tu centro de mando</p>
+        <h2 class="titulo-seccion revelar">Ves cada llamada y cada pedido en vivo, desde cualquier pantalla.</h2>
+      </div>
+      <div class="panel-escenario">
+        <div class="panel-maqueta" data-perspectiva aria-label="Vista previa del panel del restaurante">
+          <div class="maqueta-barra">
+            <span class="marca-logo marca-mini" aria-hidden="true">S</span>
+            <span>Taquería La Esquina</span>
+            <span class="maqueta-vivo">● En línea</span>
+          </div>
+          <div class="maqueta-cuerpo">
+            <div class="maqueta-kpis">
+              <div><small>Ingreso hoy</small><strong class="contador" data-contar="4280" data-prefijo="$">$4,280</strong></div>
+              <div><small>Órdenes</small><strong class="contador" data-contar="37">37</strong></div>
+              <div><small>Llamadas</small><strong class="contador" data-contar="45">45</strong></div>
+              <div><small>Conversión</small><strong class="contador" data-contar="82" data-sufijo="%">82%</strong></div>
+            </div>
+            <div class="maqueta-llamada">
+              <div class="maqueta-llamada-cabeza"><span class="punto-vivo" aria-hidden="true"></span> Llamada en vivo <small>01:24</small></div>
+              <div class="maqueta-onda" aria-hidden="true">{% for _ in range(14) %}<i></i>{% endfor %}</div>
+              <span>“…y dos aguas de jamaica, por favor”</span>
+            </div>
+            <div class="maqueta-ordenes">
+              {% for num, nombre, tipo, foto, total in [("042", "Ana", "Recoger", "taco", "$70"), ("043", "Luis", "Domicilio", "torta", "$156"), ("044", "Sofía", "Recoger", "tostada", "$96"), ("045", "Pedro", "Domicilio", "pollo", "$125")] %}
+              <div class="maqueta-orden">
+                <img src="/static/img/platillos/{{ foto }}.svg" alt="">
+                <div><strong>{{ num }}</strong> {{ nombre }}<small>{{ tipo }}</small></div>
+                <span>{{ total }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="nota-maqueta">Datos de ejemplo.</p>
+    </section>
+
+    {# ================= CALCULADORA ================= #}
+    <section class="seccion calculadora" id="calculadora" data-escena="calculadora">
+      <div class="capa profundidad-1" data-depth="1" aria-hidden="true"><span class="brillo brillo-d"></span></div>
+      <div class="contenedor calculadora-rejilla">
+        <div>
+          <p class="etiqueta revelar">Haz la cuenta</p>
+          <h2 class="titulo-seccion revelar">¿Cuánto dejas de vender por no contestar?</h2>
+          <p class="lead revelar">Mueve los valores con los números de tu restaurante.</p>
+        </div>
+        <form class="calculo revelar" data-calculadora aria-label="Calculadora de ventas perdidas">
+          <label>
+            <span>Llamadas que no alcanzas a contestar al día <output data-salida="llamadas">5</output></span>
+            <input type="range" name="llamadas" min="1" max="40" value="5">
+          </label>
+          <label>
+            <span>Ticket promedio por pedido <output data-salida="ticket">$180</output></span>
+            <input type="range" name="ticket" min="50" max="800" step="10" value="180">
+          </label>
+          <label>
+            <span>Días que abres al mes <output data-salida="dias">26</output></span>
+            <input type="range" name="dias" min="4" max="31" value="26">
+          </label>
+          <div class="resultado" aria-live="polite">
+            <small>Podrías estar dejando de vender</small>
+            <strong data-resultado>$23,400</strong>
+            <small>al mes, si cada llamada perdida fuera un pedido.</small>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    {# ================= PREGUNTAS ================= #}
+    <section class="seccion preguntas" id="preguntas" data-escena="preguntas">
+      <div class="contenedor contenedor-angosto">
+        <p class="etiqueta revelar">Preguntas frecuentes</p>
+        <h2 class="titulo-seccion revelar">Lo que suelen preguntarnos</h2>
+        <div class="acordeon">
+          <details class="revelar">
+            <summary>¿Tengo que cambiar el número de mi restaurante?</summary>
+            <p>No. Te asignamos una línea y desvías a ella las llamadas de tu número de siempre, así tus clientes marcan igual que hoy.</p>
+          </details>
+          <details class="revelar">
+            <summary>¿Qué pasa si piden algo que no está en el menú o que se agotó?</summary>
+            <p>Solo ofrece lo que está en tu menú y disponible. Si piden otra cosa, lo dice con amabilidad y propone opciones de tu menú.</p>
+          </details>
+          <details class="revelar">
+            <summary>¿Puede tomar pedidos a domicilio?</summary>
+            <p>Sí. Tú defines el costo de envío, el pedido mínimo, el tiempo y la zona de entrega. Pide dirección, referencias y forma de pago, y el repartidor ve todo en el panel.</p>
+          </details>
+          <details class="revelar">
+            <summary>¿Cómo veo los pedidos?</summary>
+            <p>En tu panel web, desde la computadora, tableta o celular de la cocina. Los pedidos aparecen al instante, sin recargar.</p>
+          </details>
+          <details class="revelar">
+            <summary>¿Qué pasa con los datos de mis clientes?</summary>
+            <p>Se usan solo para atender sus pedidos, se guardan cifrados y se borran solos al cumplir su plazo. No los vendemos ni los usamos para publicidad. Consulta nuestro <a href="/privacidad">aviso de privacidad</a>.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    {# ================= CIERRE ================= #}
+    <section class="seccion cierre" id="contacto" data-escena="cierre">
+      <div class="capa profundidad-1" data-depth="1" aria-hidden="true"><span class="brillo brillo-e"></span></div>
+      <div class="contenedor cierre-contenido">
+        <h2 class="titulo-cierre revelar">Que el teléfono vuelva a ser tu mejor vendedor.</h2>
+        <p class="lead revelar">Te mostramos Sianka funcionando con el menú de tu restaurante.</p>
+        <div class="hero-ctas revelar">
+          {% if sitio.whatsapp_url() %}
+          <a class="boton boton-primario" href="{{ sitio.whatsapp_url() }}" target="_blank" rel="noopener">Escríbenos por WhatsApp</a>
+          {% endif %}
+          {% if sitio.CONTACTO_EMAIL %}
+          <a class="boton boton-fantasma" href="mailto:{{ sitio.CONTACTO_EMAIL }}">{{ sitio.CONTACTO_EMAIL }}</a>
+          {% endif %}
+          {% if sitio.TELEFONO_DEMO %}
+          <a class="boton boton-fantasma" href="tel:{{ sitio.TELEFONO_DEMO }}">Llama al demo: {{ sitio.TELEFONO_DEMO }}</a>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="marca">
+      <span class="marca-logo" aria-hidden="true">S</span>
+      <span class="marca-nombre">Sianka</span>
+    </div>
+    <nav aria-label="Legal">
+      <a href="/privacidad">Aviso de privacidad</a>
+      <a href="/terminos">Términos de servicio</a>
+      <a href="/login">Acceso de restaurantes</a>
+    </nav>
+    <p>© {{ anio }} Sianka</p>
+  </footer>
+
+  <script src="/static/js/inicio.js"></script>
+</body>
+</html>

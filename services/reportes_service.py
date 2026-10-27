@@ -84,7 +84,18 @@ def calcular_reporte(ordenes: list[dict[str, Any]], llamadas: list[dict[str, Any
 
     ticket_promedio = round(ingreso_total / total_ordenes, 2) if total_ordenes else 0.0
 
+    # Distribuciones completas para las graficas de /reportes
+    graficas = {
+        "llamadas_por_hora": [llamadas_por_hora.get(h, 0) for h in range(24)],
+        "ordenes_por_dia": [{"dia": d, "ordenes": ordenes_por_dia.get(d, 0)} for d in DIAS_SEMANA],
+        "platillos_top": [
+            {"platillo": p, "cantidad": c, "ingreso": round(platillos_ingreso[p], 2)}
+            for p, c in platillos_cantidad.most_common(5)
+        ],
+    }
+
     return {
+        "graficas": graficas,
         "total_ordenes": total_ordenes,
         "total_llamadas": len(llamadas),
         "ingreso_total": round(ingreso_total, 2),

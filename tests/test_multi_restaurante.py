@@ -28,7 +28,10 @@ class MultiRestauranteTest(CasoBase):
 
     def test_sin_sesion(self):
         c = self.cliente()
-        self.assertEqual(c.get("/").headers.get("location"), "/login")
+        inicio = c.get("/")
+        self.assertEqual(inicio.status_code, 200, "sin sesion, / es la pagina de venta")
+        self.assertNotIn("Tacos El Güero", inicio.text, "la pagina de venta no expone datos de restaurantes")
+        self.assertEqual(c.get("/panel").headers.get("location"), "/login")
         self.assertEqual(c.get("/api/menu").status_code, 401)
 
     def test_login(self):

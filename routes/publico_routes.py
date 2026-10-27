@@ -37,6 +37,22 @@ def _contexto(request: Request, ruta: str, titulo: str, descripcion: str, **extr
     }
 
 
+def render_inicio(request: Request):
+    """Pagina de venta. No tiene ruta propia: la sirve "/" cuando no hay
+    sesion (ver dashboard_routes.inicio); con sesion, "/" es el panel."""
+    return templates.TemplateResponse(
+        request,
+        "publico/inicio.html",
+        _contexto(
+            request,
+            "/",
+            "Agente telefónico que toma los pedidos de tu restaurante",
+            "Sianka contesta las llamadas de tu restaurante, toma los pedidos para recoger o a domicilio "
+            "y los manda a tu cocina en tiempo real. Sin llamadas perdidas.",
+        ),
+    )
+
+
 @router.get("/privacidad")
 async def aviso_privacidad(request: Request):
     # Sin lista de restaurantes: publicarla expondria la cartera de clientes.
@@ -95,6 +111,8 @@ async def robots_txt() -> str:
     privada (ademas lleva meta noindex en templates/base.html)."""
     return (
         "User-agent: *\n"
+        "Allow: /$\n"
+        "Allow: /static/\n"
         "Allow: /privacidad\n"
         "Allow: /terminos\n"
         "Disallow: /\n"
@@ -105,7 +123,7 @@ async def robots_txt() -> str:
 @router.get("/sitemap.xml")
 async def sitemap() -> Response:
     # Los avisos por restaurante no se listan (no exponer la cartera de clientes).
-    rutas = ["/privacidad", "/terminos"]
+    rutas = ["/", "/privacidad", "/terminos"]
     urls = "".join(f"  <url><loc>{escape(sitio.url(ruta))}</loc></url>\n" for ruta in rutas)
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'

@@ -3,13 +3,20 @@
 {% block title %}Menu{% endblock %}
 
 {% block content %}
+<div class="encabezado-pagina">
+  <div>
+    <h1>Menu</h1>
+    <p>Lo que el agente ofrece por telefono. Si marcas un platillo como agotado, deja de ofrecerlo al instante.</p>
+  </div>
+</div>
+
 <section class="seccion">
-  <h2 class="seccion-titulo">Agregar platillo</h2>
   <div class="card">
+    <h2 class="seccion-titulo">Agregar platillo</h2>
     <form id="form-nuevo-platillo" class="form-grid">
       <div class="form-group">
         <label for="nuevo-platillo">Platillo</label>
-        <input type="text" id="nuevo-platillo" name="platillo" required>
+        <input type="text" id="nuevo-platillo" name="platillo" placeholder="Ej.: Taco de pastor" required>
       </div>
       <div class="form-group">
         <label for="nuevo-precio">Precio (MXN)</label>
@@ -25,27 +32,32 @@
 </section>
 
 <section class="seccion">
-  <h2 class="seccion-titulo">Menu actual</h2>
+  <h2 class="seccion-titulo">Menu actual · {{ menu|length }} platillos</h2>
   <div class="menu-lista" id="menu-lista">
     {% for item in menu %}
-    <div class="menu-item-card {{ 'agotado' if not item.disponible else '' }}" data-menu-id="{{ item.id }}">
+    <article class="menu-item-card {{ 'agotado' if not item.disponible else '' }}" data-menu-id="{{ item.id }}">
+      <div class="menu-item-foto">
+        <img src="{{ item.platillo | ilustracion }}" alt="" loading="lazy">
+      </div>
       <div class="menu-item-info">
         <div class="platillo-nombre">{{ item.platillo }}</div>
         <div class="platillo-ingredientes">{{ item.ingredientes or "" }}</div>
       </div>
-      <div class="menu-item-precio">${{ "%.2f"|format(item.precio) }}</div>
-      <button
-        type="button"
-        class="disponibilidad-toggle {{ 'agotado' if not item.disponible else '' }}"
-        data-disponibilidad-toggle="{{ item.id }}"
-        data-disponible="{{ 'true' if item.disponible else 'false' }}"
-        aria-pressed="{{ 'false' if not item.disponible else 'true' }}"
-      >
-        <span class="disponibilidad-punto"></span>
-        <span class="disponibilidad-texto">{{ "Disponible" if item.disponible else "Agotado" }}</span>
-      </button>
-      <button type="button" class="btn btn-danger" data-eliminar-platillo="{{ item.id }}">✕</button>
-    </div>
+      <div class="menu-item-pie">
+        <div class="menu-item-precio">${{ "%.2f"|format(item.precio) }}</div>
+        <button
+          type="button"
+          class="disponibilidad-toggle {{ 'agotado' if not item.disponible else '' }}"
+          data-disponibilidad-toggle="{{ item.id }}"
+          data-disponible="{{ 'true' if item.disponible else 'false' }}"
+          aria-pressed="{{ 'false' if not item.disponible else 'true' }}"
+        >
+          <span class="disponibilidad-punto"></span>
+          <span class="disponibilidad-texto">{{ "Disponible" if item.disponible else "Agotado" }}</span>
+        </button>
+        <button type="button" class="btn btn-danger" data-eliminar-platillo="{{ item.id }}" aria-label="Eliminar {{ item.platillo }}">✕</button>
+      </div>
+    </article>
     {% else %}
     <div class="estado-vacio">Aun no hay platillos en el menu.</div>
     {% endfor %}

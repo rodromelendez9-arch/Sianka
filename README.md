@@ -27,6 +27,7 @@ telefónico, su menú, su configuración y su propio acceso al panel.
 voice-agent/
 ├── main.py                  # App FastAPI: middleware de seguridad, retención, routers
 ├── admin.py                 # Altas de restaurantes/usuarios, ARCO, llave de cifrado
+├── demo.py                  # Modo demo: el panel con datos de ejemplo, sin .env
 ├── schema.sql               # Esquema completo para una base nueva
 ├── migrations/              # Cambios para bases creadas con un schema anterior
 ├── routes/
@@ -46,8 +47,31 @@ voice-agent/
 ├── database/supabase_client.py  # Todas las consultas (cifra/descifra aquí)
 ├── prompts/agent_prompt.py      # Saludo y prompt, armados con los datos de cada restaurante
 ├── models/                      # Validación de las peticiones del panel
-├── templates/ y static/         # Panel y páginas públicas
+├── templates/ y static/         # Panel (centro de mando, css/panel.css, js/ventanas.js) y páginas públicas
+├── static/img/platillos/        # Ilustraciones SVG de los platillos (services/ilustraciones.py las asigna)
+├── tests/                       # Pruebas (unittest), sin servicios reales
 ```
+
+## Ver el panel sin configurar nada (modo demo)
+
+```bash
+python demo.py
+```
+
+- `http://127.0.0.1:8765` — la página de venta.
+- `http://127.0.0.1:8765/login` — entra al panel con la cuenta de prueba, que
+  aparece en la misma pantalla de login (solo en modo demo). Trae datos de
+  ejemplo y una llamada simulada cada 40 segundos.
+
+No necesita `.env` ni toca ningún servicio real; sirve para revisar el diseño
+o para enseñarlo.
+
+## Página de venta y panel
+
+`/` muestra la **página de venta** a los visitantes y el **panel** a quien ya
+inició sesión (los restaurantes no cambian su liga). `/panel` lleva siempre al
+panel. Los botones de contacto de la página salen de `SIANKA_WHATSAPP`,
+`SIANKA_EMAIL_CONTACTO` y `SIANKA_TELEFONO_DEMO` en `.env`.
 
 ## Instalación
 
@@ -162,9 +186,21 @@ páginas públicas. Córrelas antes de cada commit.
 - Cada restaurante solo ve sus propios datos; RLS activo en todas las tablas.
 - Avisos públicos en `/privacidad`, `/privacidad/<slug>` y `/terminos`.
 
-## Producción
+## Producción (Railway)
 
-Usa un dominio propio con HTTPS/WSS (Railway, Render, Fly.io o un VPS con
-Nginx) en lugar de ngrok, pon `PUBLIC_BASE_URL` con ese dominio y actualiza
-el webhook de Twilio. El límite de intentos y los eventos en vivo viven en
-memoria: corre un solo proceso hasta moverlos a un almacén compartido.
+`railway.json` ya trae el comando de arranque (uvicorn detrás del proxy de
+Railway, para que la IP real del cliente llegue al límite de intentos y la
+firma de Twilio se valide con `https`), el healthcheck `/health` y **una sola
+réplica**: el límite de intentos y los eventos en vivo viven en memoria, así
+que no escales a más réplicas hasta moverlos a un almacén compartido.
+`.python-version` fija Python 3.12.
+
+1. Railway → **New Project → Deploy from GitHub repo** → este repositorio.
+2. **Variables**: las de `.env.example`. Obligatorias: `TWILIO_AUTH_TOKEN`,
+   `DEEPGRAM_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`,
+   `SESSION_SECRET_KEY`, `DATA_ENCRYPTION_KEY` (la **misma** que tu `.env`
+   local, porque `admin.py` la usa para cifrar) y `PUBLIC_BASE_URL`. No pongas
+   `PORT` ni `HOST`: Railway asigna el puerto.
+3. **Settings → Networking → Generate Domain** (o tu dominio propio) y pon esa
+   URL en `PUBLIC_BASE_URL`.
+4. En Twilio apunta el número a `https://TU-DOMINIO/webhook/twilio/incoming` (POST).

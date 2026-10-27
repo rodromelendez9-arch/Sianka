@@ -4,33 +4,39 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>{% block title %}Voice Agent{% endblock %} · {{ restaurante.nombre if restaurante else "Voice Agent" }}</title>
+  <meta name="color-scheme" content="dark">
+  <title>{% block title %}Panel{% endblock %} · {{ restaurante.nombre if restaurante else "Sianka" }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="/static/css/panel.css">
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="panel">
   <header class="header">
     <div class="header-inner">
-      <div class="logo">
-        <span class="logo-punto"></span>
-        <span class="logo-nombre">{{ restaurante.nombre if restaurante else "Voice Agent" }}</span>
-      </div>
-      <nav class="header-nav">
-        <a href="/" class="{{ 'activo' if active_page == 'dashboard' else '' }}">Ordenes</a>
+      <a class="marca" href="/">
+        <span class="marca-logo" aria-hidden="true">S</span>
+        <span class="marca-textos">
+          <span class="marca-producto">Sianka</span>
+          <span class="marca-restaurante">{{ restaurante.nombre if restaurante else "Panel" }}</span>
+        </span>
+      </a>
+      <nav class="header-nav" aria-label="Secciones">
+        <a href="/" class="{{ 'activo' if active_page == 'dashboard' else '' }}">Centro de mando</a>
         <a href="/llamadas" class="{{ 'activo' if active_page == 'llamadas' else '' }}">Llamadas</a>
         <a href="/menu" class="{{ 'activo' if active_page == 'menu' else '' }}">Menu</a>
         <a href="/reportes" class="{{ 'activo' if active_page == 'reportes' else '' }}">Reportes</a>
         <a href="/configuracion" class="{{ 'activo' if active_page == 'configuracion' else '' }}">Configuracion</a>
       </nav>
       <div class="header-spacer"></div>
+      <span class="reloj" data-reloj aria-hidden="true"></span>
       <span class="badge-escuchando">
         <span class="punto-animado"></span>
-        Escuchando llamadas
+        En linea
       </span>
-      <a href="/logout" class="header-logout">Cerrar sesion</a>
+      <a href="/logout" class="header-logout">Salir</a>
     </div>
   </header>
 

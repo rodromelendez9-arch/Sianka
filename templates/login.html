@@ -7,120 +7,27 @@
   <title>Iniciar sesion · Sianka</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/styles.css">
-  <style>
-    .login-fondo {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-    }
-
-    .login-tarjeta {
-      width: 100%;
-      max-width: 380px;
-      background: var(--surface-1);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      padding: 2.5rem 2rem;
-    }
-
-    .login-logo {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      justify-content: center;
-      margin-bottom: 1.75rem;
-    }
-
-    .login-logo .logo-punto {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--primary);
-    }
-
-    .login-logo span.nombre {
-      font-weight: 700;
-      font-size: 1.15rem;
-      letter-spacing: -0.01em;
-    }
-
-    .login-tarjeta h1 {
-      font-size: 1rem;
-      font-weight: 600;
-      text-align: center;
-      color: var(--text-2);
-      margin-bottom: 1.5rem;
-    }
-
-    .login-campo {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      margin-bottom: 1.25rem;
-    }
-
-    .login-campo label {
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: var(--text-2);
-    }
-
-    .login-campo input {
-      font-family: inherit;
-      font-size: 0.95rem;
-      padding: 0.65rem 0.8rem;
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius);
-      background: var(--surface-2);
-      color: var(--text-1);
-    }
-
-    .login-campo input:focus {
-      outline: 2px solid var(--primary);
-      outline-offset: 1px;
-      background: var(--surface-1);
-    }
-
-    .login-boton {
-      width: 100%;
-      padding: 0.7rem;
-      border: none;
-      border-radius: var(--radius);
-      background: var(--primary);
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.95rem;
-      transition: background 0.15s ease;
-    }
-
-    .login-boton:hover {
-      background: var(--primary-hover);
-    }
-
-    .login-error {
-      background: var(--surface-2);
-      border: 1px solid var(--border-strong);
-      color: var(--primary);
-      border-radius: var(--radius);
-      padding: 0.6rem 0.8rem;
-      font-size: 0.85rem;
-      margin-bottom: 1.25rem;
-    }
-  </style>
+  <link rel="stylesheet" href="/static/css/panel.css">
 </head>
-<body>
+<body class="panel login">
   <div class="login-fondo">
     <div class="login-tarjeta">
       <div class="login-logo">
-        <span class="logo-punto"></span>
+        <span class="marca-logo" aria-hidden="true">S</span>
         <span class="nombre">Sianka</span>
       </div>
       <h1>Acceso del equipo</h1>
+
+      {% if demo_credenciales %}
+      {# Solo existe en modo demo (demo.py); en produccion nunca se define. #}
+      <div class="login-demo" role="note">
+        <strong>Modo demo</strong>
+        <span>Correo: <code>{{ demo_credenciales.email }}</code></span>
+        <span>Contraseña: <code>{{ demo_credenciales.password }}</code></span>
+      </div>
+      {% endif %}
 
       {% if error %}
       <div class="login-error">{{ error }}</div>
