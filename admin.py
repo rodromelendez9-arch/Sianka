@@ -19,6 +19,10 @@ Proteccion de datos:
     python admin.py arco-cancelar tacos-el-guero +529991234567
     python admin.py purgar-transcripciones     # aplica la retencion ya
 
+Uso y costo (interno, el restaurante no lo ve):
+
+    python admin.py uso --dias 30
+
 El CSV del menu lleva encabezados: platillo,precio,ingredientes
 """
 import argparse
@@ -252,6 +256,50 @@ def cmd_purgar_transcripciones(args) -> None:
     print(f"Borradas (mas de {dias} dias): {transcripciones} transcripcion(es) y {direcciones} direccion(es) de entrega.")
 
 
+def resumen_uso(llamadas: list[dict], restaurantes: list[dict]) -> list[dict]:
+    """Llamadas, minutos, pedidos y costo por restaurante (mayor costo primero)."""
+    por_id: dict = {}
+    for llamada in llamadas:
+        fila = por_id.setdefault(
+            llamada.get("restaurante_id"), {"llamadas": 0, "segundos": 0, "pedidos": 0, "costo_usd": 0.0}
+        )
+        fila["llamadas"] += 1
+        fila["segundos"] += int(llamada.get("duracion_segundos") or 0)
+        fila["pedidos"] += llamada.get("resultado") == "orden"
+        fila["costo_usd"] += float(llamada.get("costo_estimado_usd") or 0)
+
+    slugs = {r["id"]: r["slug"] for r in restaurantes}
+    filas = [
+        {
+            "slug": slugs.get(rid, "(desconocido)"),
+            **datos,
+            "minutos": round(datos["segundos"] / 60, 1),
+            "costo_usd": round(datos["costo_usd"], 2),
+            "costo_por_pedido_usd": round(datos["costo_usd"] / datos["pedidos"], 3) if datos["pedidos"] else None,
+        }
+        for rid, datos in por_id.items()
+    ]
+    return sorted(filas, key=lambda f: f["costo_usd"], reverse=True)
+
+
+def cmd_uso(args) -> None:
+    desde = datetime.now(timezone.utc) - timedelta(days=args.dias)
+    filas = resumen_uso(
+        supabase_client.get_uso_llamadas(desde.isoformat()), supabase_client.listar_restaurantes()
+    )
+    if not filas:
+        print(f"Sin llamadas en los ultimos {args.dias} dias.")
+        return
+    print(f"Ultimos {args.dias} dias (costo estimado en USD, tarifas en services/costos_service.py)\n")
+    print(f"{'restaurante':<28} {'llamadas':>8} {'minutos':>8} {'pedidos':>8} {'costo':>9} {'x pedido':>9}")
+    for f in filas:
+        por_pedido = f"{f['costo_por_pedido_usd']:.3f}" if f["costo_por_pedido_usd"] is not None else "-"
+        print(
+            f"{f['slug']:<28} {f['llamadas']:>8} {f['minutos']:>8} {f['pedidos']:>8} "
+            f"{f['costo_usd']:>9.2f} {por_pedido:>9}"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Administracion de restaurantes de Sianka")
     sub = parser.add_subparsers(dest="comando", required=True)
@@ -317,6 +365,10 @@ def main() -> None:
     )
     p.add_argument("--dias", type=int, help=f"Default: {sitio.RETENCION_TRANSCRIPCIONES_DIAS}")
     p.set_defaults(func=cmd_purgar_transcripciones)
+
+    p = sub.add_parser("uso", help="Llamadas, minutos, pedidos y costo estimado por restaurante")
+    p.add_argument("--dias", type=int, default=30, help="Default: 30")
+    p.set_defaults(func=cmd_uso)
 
     args = parser.parse_args()
     args.func(args)

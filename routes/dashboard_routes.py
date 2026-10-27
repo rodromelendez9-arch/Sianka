@@ -16,7 +16,7 @@ from prompts.agent_prompt import (
 from routes.order_routes import DIAS_POR_PERIODO, SEMANAS_HISTORIAL_PREDICCION
 from routes.publico_routes import render_inicio
 from services.auth_service import require_login, restaurante_de_sesion
-from services.cifrado_service import enmascarar_telefono
+from services.cifrado_service import enmascarar_telefono, telefono_mexico
 from services.ilustraciones import url_ilustracion
 from services.prediccion_service import calcular_prediccion_demanda
 from services.reportes_service import ZONA_HORARIA, a_hora_local, calcular_reporte
@@ -198,6 +198,7 @@ async def configuracion_guardar(
     email_privacidad: str = Form(""),
     url_aviso_privacidad_propia: str = Form(""),
     aviso_en_llamada: Optional[str] = Form(None),
+    telefono_transferencia: str = Form(""),
     restaurante_id: str = Depends(require_login),
 ):
     # El slug y el numero de Twilio NO se editan aqui: el numero decide que
@@ -226,8 +227,15 @@ async def configuracion_guardar(
     if url_propia and not re.fullmatch(r"https://[^\s]+\.[^\s]+", url_propia):
         return error("La URL del aviso de privacidad debe empezar con https://")
 
+    transferencia = None
+    if telefono_transferencia.strip():
+        transferencia = telefono_mexico(telefono_transferencia)
+        if not transferencia:
+            return error("El telefono para pasar llamadas debe tener 10 digitos (o +52 y 10 digitos).")
+
     restaurante = supabase_client.actualizar_restaurante(
         restaurante_id,
+        telefono_transferencia=transferencia,
         nombre=nombre[:120],
         ciudad=ciudad.strip()[:120],
         horario=horario.strip()[:300],

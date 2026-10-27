@@ -253,6 +253,27 @@ def actualizar_llamada(llamada_id: str, **campos) -> Optional[dict]:
     return _descifrar_fila(response.data[0], CAMPOS_CIFRADOS_LLAMADA) if response.data else None
 
 
+def get_uso_llamadas(desde_iso: str) -> list[dict]:
+    """Uso y costo de todas las llamadas desde una fecha, de todos los
+    restaurantes (solo para admin.py). Sin datos personales."""
+    client = get_client()
+    filas: list[dict] = []
+    pagina = 1000
+    while True:
+        response = (
+            client.table("llamadas")
+            .select("restaurante_id, duracion_segundos, resultado, costo_estimado_usd")
+            .gte("created_at", desde_iso)
+            .order("created_at")
+            .range(len(filas), len(filas) + pagina - 1)
+            .execute()
+        )
+        lote = response.data or []
+        filas.extend(lote)
+        if len(lote) < pagina:
+            return filas
+
+
 def get_llamadas(restaurante_id: str, limite: int = 50) -> list[dict]:
     client = get_client()
     response = (

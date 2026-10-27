@@ -14,6 +14,7 @@ from twilio.twiml.voice_response import Connect, Stream, VoiceResponse
 
 from database import supabase_client
 from prompts.agent_prompt import tiempo_entrega, tiempo_recoleccion
+from services import costos_service, transferencia_service
 from services.cifrado_service import enmascarar_telefono, normalizar_telefono
 from services.claude_service import ClaudeConversationService
 from services.deepgram_service import DeepgramStreamingService, sintetizar_audio_mulaw
@@ -262,6 +263,10 @@ LARGO_MAXIMO_NOMBRE = 60
 # cliente dijo "si, esta bien" y colgo antes de que Claude registrara la orden).
 ESPERA_ULTIMO_TURNO_SEGUNDOS = 15
 
+# Antes de transferir se deja terminar la despedida del agente ("te comunico
+# con el encargado"), pero sin dejar al cliente esperando si el mark no llega.
+ESPERA_DESPEDIDA_SEGUNDOS = 8
+
 
 async def _enviar_audio_a_twilio(websocket: WebSocket, stream_sid: Optional[str], audio: bytes) -> bool:
     """Envia el audio seguido de un `mark`: Twilio devuelve ese mark cuando
@@ -284,6 +289,7 @@ async def media_stream(websocket: WebSocket) -> None:
     await websocket.accept()
 
     stream_sid: Optional[str] = None
+    call_sid: Optional[str] = None
     telefono_cliente = "desconocido"
     restaurante_id: Optional[str] = None
     llamada_id: Optional[str] = None
@@ -292,6 +298,10 @@ async def media_stream(websocket: WebSocket) -> None:
     orden_tomada = False
     nombre_cliente: Optional[str] = None
     llamada_terminada = False
+    # Numero al que se pasara la llamada cuando el agente termine de despedirse.
+    transferir_a: Optional[str] = None
+    transferida = False
+    caracteres_voz = 0
 
     restaurante: dict = {}
     claude_service: Optional[ClaudeConversationService] = None
@@ -310,7 +320,7 @@ async def media_stream(websocket: WebSocket) -> None:
     marks_pendientes = 0
 
     async def hablar(texto: str) -> None:
-        nonlocal marks_pendientes
+        nonlocal marks_pendientes, caracteres_voz
 
         transcripcion_completa.append(f"Agente: {texto}")
         await manager.broadcast(
@@ -327,6 +337,7 @@ async def media_stream(websocket: WebSocket) -> None:
             return
 
         audio = await sintetizar_audio_mulaw(texto, restaurante.get("voz_tts"))
+        caracteres_voz += len(texto)
         if await _enviar_audio_a_twilio(websocket, stream_sid, audio):
             marks_pendientes += 1
 
@@ -425,13 +436,52 @@ async def media_stream(websocket: WebSocket) -> None:
         )
         return True, mensaje
 
+    async def transferir(motivo: str) -> tuple[bool, str]:
+        """Lo llama ClaudeConversationService con la herramienta
+        transferir_llamada. Solo deja la transferencia pendiente: se hace
+        cuando el agente termina de despedirse (ver completar_transferencia)."""
+        nonlocal transferir_a
+        numero = normalizar_telefono(restaurante.get("telefono_transferencia"))
+        if not numero or not call_sid or llamada_terminada:
+            return False, "No es posible pasar la llamada ahora. Ofrece seguir ayudando o que llame mas tarde."
+        transferir_a = numero
+        logger.info("Transferencia solicitada (llamada_id=%s): %s", llamada_id, motivo[:120])
+        return True, (
+            "Transferencia lista. Despidete en una sola frase corta diciendo que lo comunicas "
+            "con alguien del restaurante. No digas nada mas."
+        )
+
+    async def completar_transferencia() -> None:
+        nonlocal transferir_a, transferida
+        numero, transferir_a = transferir_a, None
+        inicio = time.monotonic()
+        while marks_pendientes > 0 and time.monotonic() - inicio < ESPERA_DESPEDIDA_SEGUNDOS:
+            await asyncio.sleep(0.1)
+        try:
+            await transferencia_service.transferir_llamada(call_sid, numero)
+            transferida = True
+            transcripcion_completa.append("[Llamada transferida al restaurante]")
+            await manager.broadcast(
+                restaurante_id,
+                {
+                    "evento": "llamada_transferida",
+                    "llamada_id": llamada_id,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+        except Exception:
+            logger.exception("No se pudo transferir la llamada (llamada_id=%s)", llamada_id)
+            await hablar("Disculpa, no pude comunicarte en este momento. ¿Te ayudo con algo más?")
+
     async def procesar_turno(texto: str) -> None:
         transcripcion_completa.append(f"Cliente: {texto}")
 
         try:
-            resultado = await claude_service.responder(texto, registrar_orden)
+            resultado = await claude_service.responder(texto, registrar_orden, transferir=transferir)
             if resultado["texto"]:
                 await hablar(resultado["texto"])
+            if transferir_a and not llamada_terminada:
+                await completar_transferencia()
         except Exception:
             logger.exception(
                 "Error procesando turno de conversacion (llamada_id=%s)",
@@ -479,6 +529,7 @@ async def media_stream(websocket: WebSocket) -> None:
             if evento == "start":
                 start_data = mensaje["start"]
                 stream_sid = start_data["streamSid"]
+                call_sid = start_data.get("callSid")
                 custom_params = start_data.get("customParameters", {})
 
                 datos_token = _validar_stream_token(custom_params.get("stream_token", ""))
@@ -496,6 +547,10 @@ async def media_stream(websocket: WebSocket) -> None:
                 # a partir del numero marcado: nombre, menu, saludo y voz de
                 # ESTA llamada son los de ese restaurante.
                 restaurante = supabase_client.get_restaurante(restaurante_id) or {}
+                if not transferencia_service.disponible():
+                    # Sin credenciales para controlar la llamada, el agente no
+                    # debe ofrecer pasarla a una persona.
+                    restaurante = {**restaurante, "telefono_transferencia": None}
                 menu = supabase_client.get_menu_disponible(restaurante_id)
                 llamada = supabase_client.crear_llamada(restaurante_id, telefono_cliente)
                 llamada_id = llamada["id"]
@@ -557,12 +612,19 @@ async def media_stream(websocket: WebSocket) -> None:
 
         duracion = int(time.time() - inicio_llamada)
         if llamada_id:
+            uso = {
+                "duracion_segundos": duracion,
+                "caracteres_voz": caracteres_voz,
+                **(getattr(claude_service, "uso", None) or {}),
+            }
             supabase_client.actualizar_llamada(
                 llamada_id,
                 duracion_segundos=duracion,
                 transcripcion="\n".join(transcripcion_completa),
-                resultado="orden" if orden_tomada else "sin_orden",
+                resultado="orden" if orden_tomada else ("transferida" if transferida else "sin_orden"),
                 nombre_cliente=nombre_cliente,
+                uso=uso,
+                costo_estimado_usd=costos_service.estimar_costo_usd(uso),
             )
 
         await manager.broadcast(

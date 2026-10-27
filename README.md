@@ -11,6 +11,8 @@ telefónico, su menú, su configuración y su propio acceso al panel.
 ## Qué hace
 
 - **Contesta y saluda** en cuanto entra la llamada, con el nombre del restaurante.
+- **Pasa la llamada a una persona** del restaurante si el cliente lo pide, tiene
+  una queja o algo que el agente no resuelve (configurable en /configuracion).
 - **Toma el pedido** solo con platillos del menú real, pide el nombre de pila y,
   si es a domicilio, dirección, referencias y forma de pago.
 - **Valida antes de registrar**: menú, pedido mínimo de envío, dirección, pago.
@@ -93,7 +95,7 @@ pip install -r requirements.txt
 
 - **Base nueva:** ejecuta `schema.sql` completo.
 - **Base creada con un schema anterior:** ejecuta, en orden, las migraciones
-  de `migrations/` que te falten (002 → 005) y después
+  de `migrations/` que te falten (002 → 006) y después
   `python admin.py cifrar-existentes`.
 
 En **Project Settings → API** copia la URL y la llave `service_role`.
@@ -148,6 +150,7 @@ Marca al número: el panel muestra la llamada en vivo y la orden al confirmarse.
 | Derecho de acceso (ARCO) | `python admin.py arco-consultar <slug> <telefono>` |
 | Derecho de cancelación (ARCO) | `python admin.py arco-cancelar <slug> <telefono>` |
 | Aplicar la retención ya | `python admin.py purgar-transcripciones` |
+| Llamadas, minutos y costo por restaurante | `python admin.py uso --dias 30` |
 
 ## Pruebas
 

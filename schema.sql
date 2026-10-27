@@ -40,6 +40,8 @@ create table if not exists restaurantes (
     pedido_minimo_envio decimal(10,2) default 0,
     tiempo_entrega_min integer default 45,
     zona_entrega text,
+    -- Numero del encargado al que el agente pasa la llamada (null = no se transfiere)
+    telefono_transferencia text,
     activo boolean default true,
     created_at timestamptz default now()
 );
@@ -92,7 +94,11 @@ create table if not exists llamadas (
     nombre_cliente text,
     duracion_segundos integer,
     transcripcion text,
-    resultado text check (resultado in ('orden', 'sin_orden')),
+    resultado text check (resultado in ('orden', 'sin_orden', 'transferida')),
+    -- Uso (minutos, tokens, caracteres de voz) y costo estimado en USD.
+    -- Interno de Sianka: el panel del restaurante no lo muestra.
+    uso jsonb,
+    costo_estimado_usd numeric(10,4),
     created_at timestamptz default now()
 );
 

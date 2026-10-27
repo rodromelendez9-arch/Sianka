@@ -60,6 +60,35 @@
         <span class="form-ayuda">Promociones, politicas o datos que el agente debe mencionar cuando aplique.</span>
       </div>
 
+      <h3 class="config-subtitulo" id="llamadas">Llamadas</h3>
+
+      <div class="form-group">
+        <label for="telefono_transferencia">Telefono para pasar llamadas a una persona</label>
+        <input type="tel" id="telefono_transferencia" name="telefono_transferencia" maxlength="20"
+               value="{{ restaurante.telefono_transferencia or '' }}" placeholder="999 123 4567">
+        <span class="form-ayuda">Si un cliente pide hablar con alguien, tiene una queja o pide algo que el agente no resuelve
+          (reservaciones, eventos, facturacion), el agente le pasa la llamada a este numero. Dejalo vacio para no transferir.</span>
+      </div>
+
+      <details class="config-guia">
+        <summary>Como usar tu numero de siempre</summary>
+        <p>Tus clientes pueden seguir marcando a tu numero actual: solo desvia las llamadas al numero del agente
+          (<strong>{{ restaurante.twilio_number or 'aun sin asignar' }}</strong>).</p>
+        <ul>
+          <li><strong>Celular</strong> (Telcel, AT&amp;T, Movistar): marca el codigo y presiona llamar.
+            <ul>
+              <li>Siempre: <code>**21*NUMERO#</code></li>
+              <li>Solo si no contestas: <code>**61*NUMERO#</code></li>
+              <li>Solo si estas ocupado: <code>**67*NUMERO#</code></li>
+              <li>Quitar el desvio: <code>##002#</code></li>
+            </ul>
+          </li>
+          <li><strong>Telefono fijo</strong>: pide a tu compania que active el "desvio de llamadas" hacia ese numero.</li>
+        </ul>
+        <p class="form-ayuda">Haz una llamada de prueba despues de activarlo. Si usas "solo si no contestas", tu equipo
+          sigue contestando primero y el agente toma las que se escapan.</p>
+      </details>
+
       <h3 class="config-subtitulo" id="entregas">Entregas a domicilio</h3>
 
       <label class="config-check">

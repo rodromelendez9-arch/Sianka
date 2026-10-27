@@ -126,7 +126,7 @@ class CentroDeMandoTest(CasoBase):
             def __init__(self, *a, **k):
                 self.saludo = "Hola"
 
-            async def responder(self, texto, registrar_orden):
+            async def responder(self, texto, registrar_orden, transferir=None):
                 ok, msg = await registrar_orden({"nombre_cliente": "Ana", "tipo_entrega": "recoger",
                                                  "items": [{"platillo": "Cochinita pibil", "cantidad": 1}]})
                 return {"texto": msg, "orden_registrada": ok}
